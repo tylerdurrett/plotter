@@ -1,0 +1,97 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+!**/src/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node.js
+node_modules/
+pnpm-debug.log*
+.pnpm-store/
+yarn-debug.log*
+yarn-error.log*
+.yarn/
+.pnp.*
+
+# Turborepo
+.turbo/
+
+# Next.js
+.next/
+out/
+
+# Environment variables — .env is committed (safe defaults), .env.local is not (secrets)
+.env.local
+.env.*.local
+project.config.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Build artifacts
+*.pyc
+*.pyo
+*.pyd
+.cache/
+*.tsbuildinfo
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+
+# Telegram bot session data
+.telegram-bot/
+
+# Generated test results
+scripts/test-sandbox-results.md
+
+# Chrome DevTools skill screenshots
+_screenshots/
