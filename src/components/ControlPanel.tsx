@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { LevaPanel, useControls, useCreateStore } from 'leva'
 
 import { extractParamValues } from '@/lib/params'
@@ -8,6 +8,11 @@ export interface ControlPanelProps {
   params: Record<string, unknown>
   /** Called on every param value change (transient — does not trigger React re-render) */
   onChange: (values: Record<string, unknown>) => void
+}
+
+export interface ControlPanelHandle {
+  /** Programmatically update param values (e.g. for Randomize Seed) */
+  setValues: (values: Record<string, unknown>) => void
 }
 
 /** Dark theme matching shadcn CSS variables from index.css */
@@ -37,31 +42,79 @@ const LEVA_THEME = {
  * Changes are delivered via the transient `onChange` callback to
  * avoid full React re-renders on every slider drag.
  */
-export function ControlPanel({ params, onChange }: ControlPanelProps) {
-  const store = useCreateStore()
+export const ControlPanel = forwardRef<ControlPanelHandle, ControlPanelProps>(
+  function ControlPanel({ params, onChange }, ref) {
+    const store = useCreateStore()
 
-  // Track current values so we can deliver the full object on each change
-  const valuesRef = useRef(extractParamValues(params))
+    // Track current values so we can deliver the full object on each change
+    const valuesRef = useRef(extractParamValues(params))
 
-  useControls(() => params as Record<string, unknown>, {
-    store,
-    onChange: (value: unknown, path: string, context: { initial: boolean }) => {
-      if (context.initial) return // skip the initial setup call
-      valuesRef.current[path] = value
-      onChange({ ...valuesRef.current })
-    },
-  })
+    // Stable ref for the onChange prop so the schema callbacks always see
+    // the latest handler without needing to rebuild the schema.
+    const onChangeRef = useRef(onChange)
+    useEffect(() => {
+      onChangeRef.current = onChange
+    }, [onChange])
 
-  return (
-    <div data-testid="control-panel">
-      <LevaPanel
-        store={store}
-        fill
-        flat
-        titleBar={false}
-        hideCopyButton
-        theme={LEVA_THEME}
-      />
-    </div>
-  )
-}
+    // Expose setValues so the parent can programmatically update params
+    // (e.g. Randomize Seed button). Uses Leva's store API to update both
+    // the UI controls and trigger the onChange callback.
+    useImperativeHandle(ref, () => ({
+      setValues(values: Record<string, unknown>) {
+        for (const [path, value] of Object.entries(values)) {
+          store.setValueAtPath(path, value, false)
+        }
+      },
+    }))
+
+    // Leva extracts onChange from each *param definition* in the schema,
+    // NOT from the settings object. Inject a transient onChange handler
+    // into every param so slider drags propagate to the parent.
+    useControls(
+      () => {
+        const schema: Record<string, unknown> = {}
+        for (const [key, paramDef] of Object.entries(params)) {
+          const handler = (
+            value: unknown,
+            _path: string,
+            context: { initial: boolean },
+          ) => {
+            if (context.initial) return
+            valuesRef.current[key] = value
+            onChangeRef.current({ ...valuesRef.current })
+          }
+
+          if (paramDef && typeof paramDef === 'object') {
+            schema[key] = {
+              ...(paramDef as object),
+              onChange: handler,
+              transient: true,
+            }
+          } else {
+            // Raw primitive — wrap in an object with onChange
+            schema[key] = {
+              value: paramDef,
+              onChange: handler,
+              transient: true,
+            }
+          }
+        }
+        return schema
+      },
+      { store },
+    )
+
+    return (
+      <div data-testid="control-panel">
+        <LevaPanel
+          store={store}
+          fill
+          flat
+          titleBar={false}
+          hideCopyButton
+          theme={LEVA_THEME}
+        />
+      </div>
+    )
+  },
+)

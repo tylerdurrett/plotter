@@ -500,14 +500,18 @@ plotter/
 
 ### 5.2 Wire Parameters → Render → Preview
 
-- [ ] Update `app.tsx` to:
+- [x] Update `app.tsx` to:
   - Pass the active sketch's `params` to `ControlPanel`
   - On parameter change, re-run the sketch's `render(ctx, newParams)` to get new polylines
   - **Throttle the render loop with `requestAnimationFrame`** — coalesce rapid parameter changes (e.g., dragging a slider) so `render()` runs at most once per frame. Without this, expensive sketches will stutter during slider drags.
   - Pass updated polylines to `SketchViewer`
   - Rebuild `SketchContext` when paper size or margin changes
-- [ ] Ensure the canvas redraws on every parameter change (within the rAF throttle)
-- [ ] Add a "Randomize Seed" button that picks a random seed value and updates the control
+  - **Note:** Replaced static `useMemo`-based render with imperative rAF-throttled loop. `scheduleRender` coalesces rapid param changes; `flushRender` runs at most once per frame via `requestAnimationFrame`. `setPaperSize` uses a functional updater with equality check to avoid unnecessary canvas redraws when only non-paper params change. `ControlPanel.onChange` wired directly to `scheduleRender` (no intermediate wrapper).
+- [x] Ensure the canvas redraws on every parameter change (within the rAF throttle)
+- [x] Add a "Randomize Seed" button that picks a random seed value and updates the control
+  - **Note:** Uses shadcn `Button` component (variant="secondary", size="sm"). Calls `ControlPanel`'s imperative `setValues({ seed })` method exposed via `forwardRef`/`useImperativeHandle`, which sets the value through Leva's `store.setValueAtPath` API. This fires Leva's per-param `onChange` subscription, which propagates through the normal rAF render path.
+
+**Divergence from Phase 5.1 plan:** Leva's `onChange` must be injected into each **param definition** in the schema (not as a top-level settings option). The `useControls` settings object's `onChange` property is not wired to store subscriptions — Leva's `parseOptions()` extracts `onChange` from individual schema entries. ControlPanel now transforms the sketch's param schema to inject per-param `onChange` handlers with `transient: true` so slider drags propagate to the parent without triggering React re-renders of the ControlPanel itself. Total project test count: 239 passing.
 
 **Acceptance Criteria:**
 

@@ -1,28 +1,23 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { ControlPanel } from '@/components/ControlPanel'
+import {
+  ControlPanel,
+  type ControlPanelHandle,
+} from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { Button } from '@/components/ui/button'
 import { SketchViewer } from '@/components/SketchViewer'
 import { useSketchLoader } from '@/hooks/useSketchLoader'
 import { createSketchContext } from '@/lib/context'
 import { extractParamValues } from '@/lib/params'
 import { PAPER_SIZES } from '@/lib/paper'
-import type { Polyline, SketchModule } from '@/lib/types'
+import type { PaperSize, Polyline, SketchModule } from '@/lib/types'
 
-/** Derive param values and build a SketchContext from a sketch's param schema */
-function buildSketchContext(sketch: SketchModule) {
-  const paramValues = extractParamValues(sketch.params)
+/** Build a SketchContext from explicit param values */
+function buildContext(paramValues: Record<string, unknown>) {
   const paperSize = (paramValues.paperSize as string) ?? 'letter'
   const margin = (paramValues.margin as number) ?? 0
-  const ctx = createSketchContext(paperSize, undefined, margin)
-  return { ctx, paramValues, margin }
-}
-
-const FALLBACK = {
-  lines: [] as Polyline[],
-  paperSize: PAPER_SIZES.letter,
-  margin: 0,
-  renderError: null as string | null,
+  return createSketchContext(paperSize, undefined, margin)
 }
 
 function App() {
@@ -35,6 +30,66 @@ function App() {
     loadSketch,
   } = useSketchLoader()
 
+  const controlPanelRef = useRef<ControlPanelHandle>(null)
+
+  // Render output state — updated imperatively from the rAF loop
+  const [lines, setLines] = useState<Polyline[]>([])
+  const [paperSize, setPaperSize] = useState<PaperSize>(PAPER_SIZES.letter)
+  const [margin, setMargin] = useState(0)
+  const [renderError, setRenderError] = useState<string | null>(null)
+
+  // Keep a ref to the active sketch so the rAF callback always sees the latest
+  const sketchRef = useRef<SketchModule | null>(null)
+  useEffect(() => {
+    sketchRef.current = activeSketch
+  }, [activeSketch])
+
+  // --- rAF-throttled render loop ---
+  // Coalesces rapid param changes (e.g. slider drags) to one render per frame.
+  const pendingParamsRef = useRef<Record<string, unknown> | null>(null)
+  const rafIdRef = useRef<number>(0)
+
+  const flushRender = useCallback(() => {
+    rafIdRef.current = 0
+    const params = pendingParamsRef.current
+    const sketch = sketchRef.current
+    if (!params || !sketch) return
+
+    try {
+      const ctx = buildContext(params)
+      const result = sketch.render(ctx, params)
+      setLines(result)
+      // Avoid new object reference when dimensions haven't changed,
+      // which would cause SketchViewer to needlessly redraw.
+      setPaperSize((prev) =>
+        prev.width === ctx.paper.width && prev.height === ctx.paper.height
+          ? prev
+          : { width: ctx.paper.width, height: ctx.paper.height },
+      )
+      setMargin(ctx.paper.margin)
+      setRenderError(null)
+    } catch (err) {
+      setRenderError(err instanceof Error ? err.message : 'Render failed')
+    }
+  }, [])
+
+  const scheduleRender = useCallback(
+    (paramValues: Record<string, unknown>) => {
+      pendingParamsRef.current = paramValues
+      if (!rafIdRef.current) {
+        rafIdRef.current = requestAnimationFrame(flushRender)
+      }
+    },
+    [flushRender],
+  )
+
+  // Clean up pending rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current)
+    }
+  }, [])
+
   // Load the first sketch on mount
   useEffect(() => {
     if (sketchList.length > 0 && !activeSketchName) {
@@ -42,37 +97,28 @@ function App() {
     }
   }, [sketchList, activeSketchName, loadSketch])
 
-  // Call setup once per sketch load (not on every param change)
+  // Call setup once per sketch load, then do the initial render
   const setupRanForRef = useRef<string | null>(null)
   useEffect(() => {
     if (!activeSketch || !activeSketchName) return
     if (setupRanForRef.current === activeSketchName) return
     setupRanForRef.current = activeSketchName
-    if (!activeSketch.setup) return
-    const { ctx } = buildSketchContext(activeSketch)
-    activeSketch.setup(ctx)
-  }, [activeSketch, activeSketchName])
 
-  // Extract param values and compute polylines (render error derived inline, not via state)
-  const { lines, paperSize, margin, renderError } = useMemo(() => {
-    if (!activeSketch) return FALLBACK
+    const paramValues = extractParamValues(activeSketch.params)
 
-    try {
-      const { ctx, paramValues, margin } = buildSketchContext(activeSketch)
-      const result = activeSketch.render(ctx, paramValues)
-      return {
-        lines: result,
-        paperSize: { width: ctx.paper.width, height: ctx.paper.height },
-        margin,
-        renderError: null,
-      }
-    } catch (err) {
-      return {
-        ...FALLBACK,
-        renderError: err instanceof Error ? err.message : 'Render failed',
-      }
+    if (activeSketch.setup) {
+      const ctx = buildContext(paramValues)
+      activeSketch.setup(ctx)
     }
-  }, [activeSketch])
+
+    // Initial render with default param values
+    scheduleRender(paramValues)
+  }, [activeSketch, activeSketchName, scheduleRender])
+
+  const handleRandomizeSeed = useCallback(() => {
+    const newSeed = Math.floor(Math.random() * 10000)
+    controlPanelRef.current?.setValues({ seed: newSeed })
+  }, [])
 
   if (loading) {
     return (
@@ -82,10 +128,10 @@ function App() {
     )
   }
 
-  if (error || renderError) {
+  if (error) {
     return (
       <div className="flex h-screen items-center justify-center bg-background text-foreground">
-        <p className="text-sm text-destructive">{error ?? renderError}</p>
+        <p className="text-sm text-destructive">{error}</p>
       </div>
     )
   }
@@ -94,21 +140,40 @@ function App() {
     <div className="flex h-screen text-foreground">
       <div className="flex-1">
         <ErrorBoundary>
-          <SketchViewer
-            lines={lines}
-            paperSize={paperSize}
-            margin={margin}
-            className="h-full"
-          />
+          {renderError ? (
+            <div className="flex h-full items-center justify-center bg-background">
+              <p className="text-sm text-destructive">{renderError}</p>
+            </div>
+          ) : (
+            <SketchViewer
+              lines={lines}
+              paperSize={paperSize}
+              margin={margin}
+              className="h-full"
+            />
+          )}
         </ErrorBoundary>
       </div>
       {activeSketch && (
-        <div className="w-75 shrink-0 overflow-y-auto border-l border-border bg-card">
-          <ControlPanel
-            key={activeSketchName}
-            params={activeSketch.params}
-            onChange={() => {}}
-          />
+        <div className="flex w-75 shrink-0 flex-col border-l border-border bg-card">
+          <div className="border-b border-border p-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              onClick={handleRandomizeSeed}
+            >
+              Randomize Seed
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <ControlPanel
+              ref={controlPanelRef}
+              key={activeSketchName}
+              params={activeSketch.params}
+              onChange={scheduleRender}
+            />
+          </div>
         </div>
       )}
     </div>
