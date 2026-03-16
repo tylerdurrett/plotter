@@ -829,12 +829,13 @@ plotter/
 
 ### 9.1 Sketch Template (`src/template/index.ts`)
 
-- [ ] Create a template sketch module that serves as the starting point for new sketches
-- [ ] Template should demonstrate:
+- [x] Create a template sketch module that serves as the starting point for new sketches
+- [x] Template should demonstrate:
   - A `params` schema with a seed, one or two numeric sliders, and a paper size select
   - A `render` function that uses `createRandom`, a geometry helper, and returns polylines
   - Imports from `@/lib/` (random, geometry, math)
-- [ ] Keep it simple but more interesting than concentric circles — e.g., a grid of randomly rotated lines
+  - **Note:** Draws a grid of randomly rotated lines. Uses `random.onCircle(half)` for rotation (reusing existing PRNG utility instead of manual trig). Params: seed, rows (2–30), cols (2–30), lineLength (0.1–3cm), paperSize. Added comment on `paperSize` param explaining it's consumed by the framework, not render(). No new tests needed — this is a pure template file validated by tsc and visual testing.
+- [x] Keep it simple but more interesting than concentric circles — e.g., a grid of randomly rotated lines
 
 **Acceptance Criteria:**
 
