@@ -32,6 +32,11 @@ const LEVA_THEME = {
     mono: "'Geist Variable', monospace",
     sans: "'Geist Variable', sans-serif",
   },
+  sizes: {
+    controlWidth: '1fr',
+    colorPickerWidth: '160px',
+    imagePreviewWidth: '160px',
+  },
 } as const
 
 /**
