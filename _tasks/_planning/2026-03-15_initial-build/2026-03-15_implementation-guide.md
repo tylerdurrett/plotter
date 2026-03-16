@@ -341,7 +341,7 @@ plotter/
   - `quadratic(p0, p1, p2, segments?)` — quadratic Bezier as polyline
   - `cubic(p0, p1, p2, p3, segments?)` — cubic Bezier as polyline
   - `spiral(cx, cy, rStart, rEnd, turns, segments?)` — Archimedean spiral
-  - **Note:** 9 pure functions, individually exported (like `math.ts` pattern). `circle` delegates to `ellipse` with equal radii. `polygon` first vertex points up (angle = -PI/2) for visual consistency. Default segments: 64 for circle/ellipse/arc/cubic, 32 for quadratic, turns*64 for spiral. All use `Point`/`Polyline` types from `@/lib/types`.
+  - **Note:** 9 pure functions, individually exported (like `math.ts` pattern). `circle` delegates to `ellipse` with equal radii. `polygon` first vertex points up (angle = -PI/2) for visual consistency. Default segments: 64 for circle/ellipse/arc/cubic, 32 for quadratic, turns\*64 for spiral. All use `Point`/`Polyline` types from `@/lib/types`.
 - [x] Write unit tests:
   - `circle(0, 0, 1, 4)` returns 5 points forming a square-ish shape (first = last)
   - `rect(0, 0, 2, 3)` returns 5 points with correct corners
@@ -474,13 +474,19 @@ plotter/
 
 ### 5.1 Leva Integration (`src/components/ControlPanel.tsx`)
 
-- [ ] Install `leva` package
-- [ ] Create `ControlPanel` component that accepts a sketch's `params` schema and renders Leva controls
-- [ ] Use Leva's `useControls` hook with the sketch's param definitions
-- [ ] **Use `<LevaPanel>` with `fill` mode** to embed the panel inside the right sidebar container — Leva's default is a floating panel (top-right corner), which won't work with the three-zone layout. Import `LevaPanel` from `leva` and render it inside a container div rather than relying on the auto-positioned default.
-- [ ] Support core Leva input types: number (slider), boolean, select/options, color
-- [ ] Expose current parameter values via a callback prop or return value
-- [ ] Use Leva's transient `onChange` mode to avoid full React re-renders on every slider drag
+- [x] Install `leva` package
+  - **Note:** Installed leva 0.10.1. Peer dependency warning for React 19 (leva lists React 16/17/18) but works correctly in practice, same as existing Tailwind/Vite peer dep situation.
+- [x] Create `ControlPanel` component that accepts a sketch's `params` schema and renders Leva controls
+  - **Note:** Component accepts `params` (Leva-compatible schema) and `onChange` (transient callback). Uses `useCreateStore()` for an isolated store, `extractDefaults()` helper to initialize a valuesRef, and delivers full values object on each change.
+- [x] Use Leva's `useControls` hook with the sketch's param definitions
+- [x] **Use `<LevaPanel>` with `fill` mode** to embed the panel inside the right sidebar container — Leva's default is a floating panel (top-right corner), which won't work with the three-zone layout. Import `LevaPanel` from `leva` and render it inside a container div rather than relying on the auto-positioned default.
+  - **Note:** Used `<LevaPanel store={store} fill flat titleBar={false} hideCopyButton />`. Custom dark theme maps Leva color tokens to OKLCH values matching the shadcn dark palette. Panel renders inline in a 300px-wide right sidebar with `bg-card` background.
+- [x] Support core Leva input types: number (slider), boolean, select/options, color
+  - **Note:** Leva auto-detects input types from the sketch's param schema. Verified: number sliders (seed, count, maxRadius, margin) and select dropdown (paperSize) render correctly.
+- [x] Expose current parameter values via a callback prop or return value
+  - **Note:** Uses `onChange` callback prop. A `valuesRef` tracks current values and delivers the full values object (not just the changed key) on each change.
+- [x] Use Leva's transient `onChange` mode to avoid full React re-renders on every slider drag
+  - **Note:** Leva's `onChange(value, path, context)` handler skips initial calls (`context.initial`) and updates `valuesRef` without triggering React state updates. The parent receives changes via callback, not React re-render. Actual render loop wiring deferred to Phase 5.2.
 
 **Acceptance Criteria:**
 
@@ -489,6 +495,8 @@ plotter/
 - Slider for `count` appears with correct min/max/step
 - Select for `paperSize` shows available options
 - Parameter values are accessible to the parent component
+
+**Note:** 5 new ControlPanel tests added (render smoke tests for valid params, empty params, boolean params, raw primitives, onChange callback). Total project test count: 234 passing.
 
 ### 5.2 Wire Parameters → Render → Preview
 
@@ -926,8 +934,8 @@ Note: Phases 7.1 and 7.2 (SVG serialization and clipping) are pure library code 
 | Phase 1 includes Vitest setup                             | Tests are needed immediately in Phase 2; avoids a "set up testing later" debt                                                        |
 | Types are a separate phase (2) before random/geometry (3) | Every module depends on `types.ts`; establishing the type contract first prevents rework                                             |
 | `math.ts` (scalar) and `vec.ts` (vector) are separate     | Avoids name collisions (`lerp` vs `vec.lerp`); keeps scalar math simple; `vec.*` namespace signals "operates on arrays"              |
-| Vector functions are dimension-generic                     | 2D and 3D ops share one implementation via `number[]` iteration; avoids duplicating a `vec2` and `vec3` module                       |
-| `Vec2` aliases `Point`                                     | No conversion needed between vector math results and polyline/geometry functions; everything is `[number, number]`                    |
+| Vector functions are dimension-generic                    | 2D and 3D ops share one implementation via `number[]` iteration; avoids duplicating a `vec2` and `vec3` module                       |
+| `Vec2` aliases `Point`                                    | No conversion needed between vector math results and polyline/geometry functions; everything is `[number, number]`                   |
 | Canvas preview before Leva controls                       | Seeing something render is the highest-value early milestone; controls without a viewer aren't testable                              |
 | Leva in its own phase (5), not bundled with viewer (4)    | Leva integration has its own complexity (transient updates, schema mapping); isolating it makes debugging easier                     |
 | App shell (6) after controls (5)                          | Sketch switching must re-initialize Leva — testing this requires controls to be working first                                        |

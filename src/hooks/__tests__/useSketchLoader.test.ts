@@ -9,7 +9,9 @@ import type { SketchModule } from '@/lib/types'
 describe('extractSketchName', () => {
   it('extracts directory name from a valid glob path', () => {
     expect(
-      extractSketchName('../../sketches/2026-03-15-concentric-circles/index.ts'),
+      extractSketchName(
+        '../../sketches/2026-03-15-concentric-circles/index.ts',
+      ),
     ).toBe('2026-03-15-concentric-circles')
   })
 

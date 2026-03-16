@@ -28,9 +28,10 @@ describe('PAPER_SIZES', () => {
 
   it('all sizes are in portrait orientation (width < height)', () => {
     for (const [name, size] of Object.entries(PAPER_SIZES)) {
-      expect(size.width, `${name} width should be less than height`).toBeLessThan(
-        size.height,
-      )
+      expect(
+        size.width,
+        `${name} width should be less than height`,
+      ).toBeLessThan(size.height)
     }
   })
 })
@@ -41,11 +42,17 @@ describe('getPaperSize', () => {
   })
 
   it('returns portrait dimensions when explicitly requested', () => {
-    expect(getPaperSize('a4', 'portrait')).toEqual({ width: 21.0, height: 29.7 })
+    expect(getPaperSize('a4', 'portrait')).toEqual({
+      width: 21.0,
+      height: 29.7,
+    })
   })
 
   it('swaps width/height for landscape', () => {
-    expect(getPaperSize('a4', 'landscape')).toEqual({ width: 29.7, height: 21.0 })
+    expect(getPaperSize('a4', 'landscape')).toEqual({
+      width: 29.7,
+      height: 21.0,
+    })
   })
 
   it('swaps width/height for landscape (letter)', () => {
@@ -56,7 +63,9 @@ describe('getPaperSize', () => {
   })
 
   it('throws for unknown paper name', () => {
-    expect(() => getPaperSize('unknown')).toThrow('Unknown paper size: "unknown"')
+    expect(() => getPaperSize('unknown')).toThrow(
+      'Unknown paper size: "unknown"',
+    )
   })
 
   it('returns a new object (not the original reference)', () => {
@@ -67,7 +76,10 @@ describe('getPaperSize', () => {
 
   // Custom paper size support (Phase 2.2.5)
   it('accepts a custom { width, height } object', () => {
-    expect(getPaperSize({ width: 15, height: 20 })).toEqual({ width: 15, height: 20 })
+    expect(getPaperSize({ width: 15, height: 20 })).toEqual({
+      width: 15,
+      height: 20,
+    })
   })
 
   it('swaps custom dimensions for landscape', () => {

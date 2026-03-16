@@ -5,9 +5,9 @@ import type { SketchModule } from '@/lib/types'
  * Lazy import map from import.meta.glob — each entry is a path → dynamic import function.
  * Paths are relative to this file: ../../sketches/<name>/index.ts
  */
-const sketchModules = import.meta.glob<{ default?: SketchModule } & SketchModule>(
-  '../../sketches/*/index.ts',
-)
+const sketchModules = import.meta.glob<
+  { default?: SketchModule } & SketchModule
+>('../../sketches/*/index.ts')
 
 /** Extract the sketch directory name from a glob path */
 export function extractSketchName(path: string): string {

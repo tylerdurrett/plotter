@@ -23,7 +23,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return { error }
   }
 
-
   render() {
     const { error } = this.state
     if (!error) return this.props.children
@@ -34,9 +33,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         className="flex flex-col items-center justify-center gap-4 rounded-lg border border-destructive/20 bg-destructive/10 p-6"
       >
         <div className="text-center">
-          <p className="text-sm font-semibold text-destructive">
-            {error.name}
-          </p>
+          <p className="text-sm font-semibold text-destructive">{error.name}</p>
           <p className="mt-1 font-mono text-xs text-destructive/80">
             {error.message}
           </p>

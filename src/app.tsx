@@ -1,25 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
 
+import { ControlPanel } from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SketchViewer } from '@/components/SketchViewer'
 import { useSketchLoader } from '@/hooks/useSketchLoader'
 import { createSketchContext } from '@/lib/context'
+import { extractParamValues } from '@/lib/params'
 import { PAPER_SIZES } from '@/lib/paper'
 import type { Polyline, SketchModule } from '@/lib/types'
-
-/** Extract default values from a Leva-style param schema */
-function extractParamValues(
-  params: Record<string, unknown>,
-): Record<string, unknown> {
-  const values: Record<string, unknown> = {}
-  for (const [key, def] of Object.entries(params)) {
-    values[key] =
-      def && typeof def === 'object' && 'value' in def
-        ? (def as { value: unknown }).value
-        : def
-  }
-  return values
-}
 
 /** Derive param values and build a SketchContext from a sketch's param schema */
 function buildSketchContext(sketch: SketchModule) {
@@ -103,15 +91,26 @@ function App() {
   }
 
   return (
-    <div className="h-screen text-foreground">
-      <ErrorBoundary>
-        <SketchViewer
-          lines={lines}
-          paperSize={paperSize}
-          margin={margin}
-          className="h-full"
-        />
-      </ErrorBoundary>
+    <div className="flex h-screen text-foreground">
+      <div className="flex-1">
+        <ErrorBoundary>
+          <SketchViewer
+            lines={lines}
+            paperSize={paperSize}
+            margin={margin}
+            className="h-full"
+          />
+        </ErrorBoundary>
+      </div>
+      {activeSketch && (
+        <div className="w-75 shrink-0 overflow-y-auto border-l border-border bg-card">
+          <ControlPanel
+            key={activeSketchName}
+            params={activeSketch.params}
+            onChange={() => {}}
+          />
+        </div>
+      )}
     </div>
   )
 }

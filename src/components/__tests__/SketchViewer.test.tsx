@@ -41,9 +41,7 @@ describe('SketchViewer', () => {
   })
 
   it('accepts optional margin prop', () => {
-    render(
-      <SketchViewer lines={[]} paperSize={letterSize} margin={1.5} />,
-    )
+    render(<SketchViewer lines={[]} paperSize={letterSize} margin={1.5} />)
     expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
   })
 
