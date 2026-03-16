@@ -7,6 +7,47 @@
 set -uo pipefail
 # Note: not using set -e — we handle errors explicitly to avoid silent exits.
 
+# Resolve claude CLI — in scripts, aliases aren't loaded and PATH may
+# differ from the user's interactive shell. Check common install
+# locations, then fall back to the user's login shell PATH.
+CLAUDE_BIN=""
+if command -v claude &>/dev/null; then
+  CLAUDE_BIN="claude"
+else
+  # Common install locations (Claude Code default, npm global, Homebrew, etc.)
+  for candidate in \
+    "$HOME/.claude/local/claude" \
+    "$HOME/.local/bin/claude" \
+    /usr/local/bin/claude \
+    /opt/homebrew/bin/claude; do
+    if [ -x "$candidate" ]; then
+      CLAUDE_BIN="$candidate"
+      break
+    fi
+  done
+fi
+
+# Still not found — try resolving PATH from the user's default shell
+if [ -z "$CLAUDE_BIN" ]; then
+  USER_PATH=$("${SHELL:-/bin/sh}" -lic 'echo "$PATH"' 2>/dev/null) || true
+  if [ -n "$USER_PATH" ]; then
+    export PATH="$USER_PATH"
+    if command -v claude &>/dev/null; then
+      CLAUDE_BIN="claude"
+    fi
+  fi
+fi
+
+if [ -z "$CLAUDE_BIN" ]; then
+  echo "Error: 'claude' CLI not found."
+  echo "Install it with: npm install -g @anthropic-ai/claude-code"
+  echo "If already installed, ensure it is on your shell's PATH."
+  exit 1
+fi
+
+# Replace bare 'claude' calls with the resolved path
+claude() { "$CLAUDE_BIN" "$@"; }
+
 if [ -z "${1:-}" ]; then
   echo "Usage: $0 <plan-file> [max-iterations] [extra-instructions] [--stop-on-manual-test]"
   echo "  plan-file:           Path to the implementation plan (e.g. _dev-tasks/2026-02-08_notion/01_notion-implementation.md)"
