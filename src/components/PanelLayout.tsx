@@ -6,7 +6,12 @@ import {
   useDefaultLayout,
 } from 'react-resizable-panels'
 import { Drawer } from '@base-ui/react/drawer'
-import { Menu, SlidersHorizontal, PanelLeftOpen, PanelRightOpen } from 'lucide-react'
+import {
+  Menu,
+  SlidersHorizontal,
+  PanelLeftOpen,
+  PanelRightOpen,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { ResizeHandle } from '@/components/ResizeHandle'

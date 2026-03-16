@@ -11,7 +11,10 @@ export type BBox = [number, number, number, number]
  * depending on how it intersects the box boundary. Uses the Cohen-Sutherland
  * algorithm via the `lineclip` package.
  */
-export function clipPolylinesToBox(lines: Polyline[], bounds: BBox): Polyline[] {
+export function clipPolylinesToBox(
+  lines: Polyline[],
+  bounds: BBox,
+): Polyline[] {
   const result: Polyline[] = []
   for (const line of lines) {
     const clipped = clipPolyline(line, bounds)

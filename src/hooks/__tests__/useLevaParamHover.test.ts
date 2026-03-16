@@ -61,9 +61,7 @@ describe('useLevaParamHover', () => {
       return 0
     }
 
-    const { result, unmount } = renderHook(() =>
-      useLevaParamHover('testparam'),
-    )
+    const { result, unmount } = renderHook(() => useLevaParamHover('testparam'))
 
     act(() => {
       row.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }))

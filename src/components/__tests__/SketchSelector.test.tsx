@@ -2,10 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import {
-  formatSketchName,
-  SketchSelector,
-} from '@/components/SketchSelector'
+import { formatSketchName, SketchSelector } from '@/components/SketchSelector'
 
 const sketches = [
   '2026-03-15-concentric-circles',
