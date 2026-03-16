@@ -946,11 +946,12 @@ plotter/
 
 ### 10.4 SVG Export & Clipping Guide (`docs/svg-export.md`)
 
-- [ ] Write a guide covering the output pipeline:
+- [x] Write a guide covering the output pipeline:
   - **SVG Serialization** — `polylinesToSVG()` options (`width`, `height`, `units`, `strokeWidth`, `strokeColor`), output format, unit conversion behavior, viewBox semantics
   - **Polyline Clipping** — `clipPolylinesToBox()` API, when/why to clip (margin enforcement), how split segments work
   - **Export Panel** — UI controls, export vs copy workflow, filename format
   - **Plotter Workflow Tips** — recommended stroke widths for common pen sizes, importing into Inkscape/plotter software, paper size accuracy
+  - **Note:** All sections implemented as specified. Covers full export pipeline from `polylinesToSVG` options/output format through `clipPolylinesToBox` API and `buildSVGExport` orchestration to Export Panel UI controls and plotter workflow tips. Includes unit conversion table, stroke width recommendations for 5 pen sizes, and Inkscape/AxiDraw import guidance. Also documents the `export.ts` utility functions (`translateToPage`, `makeExportFilename`, `downloadSVG`, `copySVGToClipboard`). README updated with link to the new doc. All function signatures verified against source.
 
 **Acceptance Criteria:**
 
