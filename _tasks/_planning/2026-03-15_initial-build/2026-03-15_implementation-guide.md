@@ -414,13 +414,15 @@ plotter/
 
 ### 4.3 Sketch Dynamic Loading (`src/hooks/useSketchLoader.ts`)
 
-- [ ] Use `import.meta.glob('../../sketches/*/index.ts', { eager: false })` to discover sketch modules (two levels up from `src/hooks/` to reach the project root `sketches/` directory)
-- [ ] Create a `useSketchLoader()` hook that returns:
+- [x] Use `import.meta.glob('../../sketches/*/index.ts', { eager: false })` to discover sketch modules (two levels up from `src/hooks/` to reach the project root `sketches/` directory)
+- [x] Create a `useSketchLoader()` hook that returns:
   - `sketchList: string[]` — available sketch names (derived from directory names)
   - `activeSketch: SketchModule | null` — the currently loaded sketch
   - `loadSketch(name: string): Promise<void>` — triggers dynamic import
   - `loading: boolean`
-- [ ] Handle errors during import (invalid module, missing export)
+  - _Also added:_ `activeSketchName: string | null` and `error: string | null` for better consumer ergonomics
+- [x] Handle errors during import (invalid module, missing export)
+  - _Note:_ Exported `extractSketchName` and `validateSketchModule` as testable helpers. Added stale-load guard via `loadIdRef` to handle rapid successive calls.
 
 **Acceptance Criteria:**
 
