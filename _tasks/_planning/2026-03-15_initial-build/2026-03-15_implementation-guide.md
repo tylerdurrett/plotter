@@ -230,8 +230,10 @@ plotter/
 
 ### 2.3 Scalar Math Utilities (`src/lib/math.ts`)
 
-- [ ] Implement: `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod` (true modulo, not JS `%`), `degToRad`, `radToDeg`, `smoothstep`
-- [ ] Write unit tests for each function with edge cases (e.g., `clamp` at boundaries, `lerp` at 0 and 1, `mod` with negative numbers)
+- [x] Implement: `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod` (true modulo, not JS `%`), `degToRad`, `radToDeg`, `smoothstep`
+  - **Note:** 9 pure, dependency-free functions. `inverseLerp` returns 0 when a===b to avoid division by zero. `smoothstep` reuses `clamp` internally. `fract` follows GLSL convention (always returns [0,1)). `mapRange` composes `lerp` and `inverseLerp`.
+- [x] Write unit tests for each function with edge cases (e.g., `clamp` at boundaries, `lerp` at 0 and 1, `mod` with negative numbers)
+  - **Note:** 47 tests across 9 describe blocks. Covers edge cases including: lerp extrapolation, inverseLerp degenerate range, negative modulo, fract of negative numbers, smoothstep Hermite polynomial verification, degToRad/radToDeg round-trip. Uses `toBeCloseTo` for floating-point comparisons.
 
 **Acceptance Criteria:**
 
