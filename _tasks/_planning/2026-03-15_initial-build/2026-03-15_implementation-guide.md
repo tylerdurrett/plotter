@@ -127,11 +127,15 @@ plotter/
 
 ### 1.3 Initialize shadcn/ui
 
-- [ ] Run `pnpm dlx shadcn@latest init` to generate `components.json` and `src/lib/utils.ts` (the `cn()` helper). Use the Vite-specific variant if prompted (shadcn supports Tailwind v4 natively).
-- [ ] Configure **dark theme as default**: set `class="dark"` on `<html>` in `index.html`, and ensure shadcn's CSS variables include dark mode colors. The project convention is **dark-theme-first** (see AGENTS.md).
-- [ ] Install one test component (e.g., Button) to verify the pipeline: `pnpm dlx shadcn@latest add button`
-- [ ] Render the Button component in `app.tsx` to confirm it works in dark mode
-- [ ] Remove the test Button usage from `app.tsx` (keep the component file for later use)
+- [x] Run `pnpm dlx shadcn@latest init` to generate `components.json` and `src/lib/utils.ts` (the `cn()` helper). Use the Vite-specific variant if prompted (shadcn supports Tailwind v4 natively).
+  - **Note:** Used `-d` flag for defaults. Required adding `baseUrl`/`paths` to root `tsconfig.json` for shadcn to detect the import alias. Init used "base-nova" style with neutral base color, installed `clsx`, `tailwind-merge`, `class-variance-authority`, `tw-animate-css`, `@base-ui/react`, `@fontsource-variable/geist`, and `shadcn` as dependencies. Also added `@import "tw-animate-css"`, `@import "shadcn/tailwind.css"`, and `@import "@fontsource-variable/geist"` to index.css and generated full light/dark CSS variable set.
+- [x] Configure **dark theme as default**: set `class="dark"` on `<html>` in `index.html`, and ensure shadcn's CSS variables include dark mode colors. The project convention is **dark-theme-first** (see AGENTS.md).
+  - **Note:** Added `class="dark"` to `<html>` tag. shadcn init generated `.dark { ... }` CSS variable block with all dark mode colors. Dark variant configured via `@custom-variant dark (&:is(.dark *))`.
+- [x] Install one test component (e.g., Button) to verify the pipeline: `pnpm dlx shadcn@latest add button`
+  - **Note:** Button was auto-installed by `shadcn init -d` as part of the default initialization. Uses `@base-ui/react/button` as the primitive.
+- [x] Render the Button component in `app.tsx` to confirm it works in dark mode
+  - **Note:** Verified via screenshot — dark background with light text and properly styled Button component.
+- [x] Remove the test Button usage from `app.tsx` (keep the component file for later use)
 
 **Acceptance Criteria:**
 
