@@ -687,17 +687,20 @@ plotter/
 
 ### 7.2 Polyline Clipping (`src/lib/clip.ts`)
 
-- [ ] Install `lineclip` package and `@types/lineclip` (dev dependency for TypeScript types)
-- [ ] Implement `clipPolylinesToBox(lines, [minX, minY, maxX, maxY])`:
+- [x] Install `lineclip` package and `@types/lineclip` (dev dependency for TypeScript types)
+  - **Note:** Installed `lineclip@2.0.0` (dependency) and `@types/lineclip@2.0.0` (devDependency). v2 exports named `clipPolyline` function with ESM.
+- [x] Implement `clipPolylinesToBox(lines, [minX, minY, maxX, maxY])`:
   - Takes an array of polylines and a rectangular bounding box
   - Returns a new array of polylines clipped to the box
   - A single polyline may be split into multiple segments if it crosses the box boundary
-- [ ] Write unit tests:
+  - **Note:** Thin wrapper over `lineclip`'s Cohen-Sutherland implementation. Also exports `BBox` type alias for the bounds tuple. Types are structurally compatible with our `Polyline` type — no casting needed.
+- [x] Write unit tests:
   - A line fully inside the box is returned unchanged
   - A line fully outside the box is removed
   - A line crossing the box boundary is clipped at the intersection point
   - A polyline that enters and exits the box is split into segments
   - Empty input returns empty output
+  - **Note:** 7 tests total covering all required cases plus multiple polylines with mixed behavior and single-point degenerate input. Total project test count: 292 passing.
 
 **Acceptance Criteria:**
 
