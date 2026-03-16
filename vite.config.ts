@@ -28,5 +28,6 @@ export default defineConfig({
       'tests/**/*.{test,spec}.{ts,tsx}',
       'scripts/**/*.{test,spec}.{ts,tsx}',
     ],
+    exclude: ['tests/e2e/**', 'node_modules/**'],
   },
 })

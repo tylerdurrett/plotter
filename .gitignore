@@ -96,3 +96,7 @@ _screenshots/
 
 # SVG exports
 exports/
+
+# Playwright
+test-results/
+playwright-report/

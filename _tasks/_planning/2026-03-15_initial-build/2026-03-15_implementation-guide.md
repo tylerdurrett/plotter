@@ -864,8 +864,9 @@ plotter/
 
 ### 9.3 Playwright E2E Smoke Test
 
-- [ ] Install Playwright and configure for the project
-- [ ] Create `tests/e2e/smoke.spec.ts` that:
+- [x] Install Playwright and configure for the project
+  - **Note:** Installed `@playwright/test` 1.58.2 as devDependency. Installed Chromium only (`pnpm exec playwright install chromium`). Created `playwright.config.ts` at project root with `webServer` config (auto-starts `pnpm dev`), `reuseExistingServer: !process.env.CI` for local dev, Chromium-only project, and 30s timeout. Added Vitest `exclude: ['tests/e2e/**', 'node_modules/**']` to prevent Vitest from picking up Playwright tests. Added `test-results/` and `playwright-report/` to `.gitignore`.
+- [x] Create `tests/e2e/smoke.spec.ts` that:
   1. Starts the Vite dev server
   2. Navigates to the app
   3. Verifies the sketch selector lists at least one sketch
@@ -873,7 +874,9 @@ plotter/
   5. Changes a parameter (e.g., adjust the `count` slider)
   6. Clicks "Export SVG" and verifies a download is triggered
   7. Verifies the downloaded SVG contains `<polyline` elements and has correct `width`/`height` attributes
-- [ ] Add `"test:e2e"` script to `package.json`
+  - **Note:** Single comprehensive test exercising the full pipeline. Leva renders inputs with `id` matching param keys (e.g., `id="count"`) — used `page.locator('#count')` for reliable targeting. SVG download intercepted via `page.waitForEvent('download')` + `createReadStream()`. Validates SVG structure, xmlns, polyline elements, and width/height attributes with units. Test completes in ~500ms.
+- [x] Add `"test:e2e"` script to `package.json`
+  - **Note:** Added `"test:e2e": "playwright test"`. All 399 existing unit tests still pass with the Vitest exclude in place.
 
 **Acceptance Criteria:**
 
