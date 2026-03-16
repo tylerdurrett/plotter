@@ -60,6 +60,7 @@ plotter/
 
 ## Documentation
 
+- [Sketch Authoring Guide](docs/sketch-authoring.md) — how to create sketches: module contract, parameters, coordinate system, randomness, geometry helpers, and a worked example
 - [HMR Behavior](docs/hmr.md) — how hot module replacement works for sketches, what persists across updates, and known caveats
 
 ## Scripts

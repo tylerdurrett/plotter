@@ -913,7 +913,7 @@ plotter/
 
 ### 10.2 Sketch Authoring Guide (`docs/sketch-authoring.md`)
 
-- [ ] Write a comprehensive guide for creating sketches:
+- [x] Write a comprehensive guide for creating sketches:
   - **Sketch Module Contract** — the `SketchModule` interface: `params`, optional `setup()`, `render()` return type (`Polyline[]`), default export pattern
   - **Parameters** — how to define Leva-compatible param schemas (number sliders with min/max/step, booleans, select/options, color pickers), how params flow into `render()`
   - **SketchContext** — what's available on `ctx`: `width`, `height`, `paper` metadata, `createRandom(seed)`
@@ -922,6 +922,7 @@ plotter/
   - **Geometry Helpers** — overview of `circle`, `arc`, `rect`, `line`, `polygon`, `ellipse`, `quadratic`, `cubic`, `spiral` with signature summaries and segment count defaults
   - **Worked Example** — annotated walkthrough of a simple sketch from params to polylines
   - **Tips** — keep `render()` pure, use seed for reproducibility, default segment counts for smooth curves
+  - **Note:** All sections implemented as specified. Worked example uses the grid-of-rotated-lines pattern (same as the scaffold template) to demonstrate seeded randomness, geometry helpers, and param schemas. All function signatures verified against source. README updated with link to the new doc. Dead link to not-yet-written `docs/math-and-vectors.md` intentionally omitted — will be added when Phase 10.3 is complete.
 
 **Acceptance Criteria:**
 
