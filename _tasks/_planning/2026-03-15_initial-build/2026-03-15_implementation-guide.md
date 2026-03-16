@@ -932,10 +932,11 @@ plotter/
 
 ### 10.3 Math & Vector Reference (`docs/math-and-vectors.md`)
 
-- [ ] Write a reference doc covering scalar math and vector utilities:
+- [x] Write a reference doc covering scalar math and vector utilities:
   - **Scalar Math (`math.ts`)** — table of all functions (`lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod`, `degToRad`, `radToDeg`, `smoothstep`) with signatures, descriptions, and edge case notes
   - **Vector Utilities (`vec.*`)** — table of all functions grouped by category: arithmetic (`add`, `sub`, `scale`, `negate`), measurement (`len`, `lenSq`, `dist`, `distSq`, `dot`, `angleBetween`), interpolation (`lerp`), normalization (`normalize`), 2D-specific (`perpendicular`), 3D-specific (`cross`), projection (`projectOrthographic`, `projectPerspective`)
   - **Usage patterns** — importing `vec` namespace, combining scalar and vector math, common recipes (e.g., point on circle, rotating a vector, distance checks)
+  - **Note:** All 9 scalar math functions and 16 vector functions documented. Vector functions grouped into 6 categories: arithmetic, measurement, interpolation/normalization, 2D-specific, 3D-specific, and projection. Usage patterns section includes 6 recipes: combining scalar/vector math, point on circle, rotating a 2D vector, distance checks (avoiding sqrt), normalize + scale, and 3D→2D projection. README updated with link to the new doc.
 
 **Acceptance Criteria:**
 

@@ -10,7 +10,9 @@ Every sketch must satisfy the `SketchModule` interface and use a default export:
 import type { SketchModule, SketchContext, Polyline } from '@/lib/types'
 
 const sketch: SketchModule = {
-  params: { /* ... */ },
+  params: {
+    /* ... */
+  },
   // setup(ctx) { /* optional one-time init */ },
   render(ctx: SketchContext, params: Record<string, unknown>): Polyline[] {
     // Return an array of polylines
@@ -108,15 +110,15 @@ render(ctx, params) {
 
 The `ctx` object passed to `setup()` and `render()` provides:
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `ctx.width` | `number` | Effective drawing width in cm (paper width minus margins on both sides) |
-| `ctx.height` | `number` | Effective drawing height in cm (paper height minus margins on both sides) |
-| `ctx.createRandom(seed)` | `(seed: string \| number) => Random` | Factory for creating seeded random instances |
-| `ctx.paper.name` | `string` | Paper preset name (e.g., `'letter'`) or `'custom'` |
-| `ctx.paper.width` | `number` | Full paper width in cm (before margin subtraction) |
-| `ctx.paper.height` | `number` | Full paper height in cm |
-| `ctx.paper.margin` | `number` | Margin in cm per side |
+| Property                 | Type                                 | Description                                                               |
+| ------------------------ | ------------------------------------ | ------------------------------------------------------------------------- |
+| `ctx.width`              | `number`                             | Effective drawing width in cm (paper width minus margins on both sides)   |
+| `ctx.height`             | `number`                             | Effective drawing height in cm (paper height minus margins on both sides) |
+| `ctx.createRandom(seed)` | `(seed: string \| number) => Random` | Factory for creating seeded random instances                              |
+| `ctx.paper.name`         | `string`                             | Paper preset name (e.g., `'letter'`) or `'custom'`                        |
+| `ctx.paper.width`        | `number`                             | Full paper width in cm (before margin subtraction)                        |
+| `ctx.paper.height`       | `number`                             | Full paper height in cm                                                   |
+| `ctx.paper.margin`       | `number`                             | Margin in cm per side                                                     |
 
 ## Coordinate System
 
@@ -140,19 +142,19 @@ Each instance is fully independent — no shared global state. Same seed always 
 
 ### Random API
 
-| Method | Return | Description |
-| --- | --- | --- |
-| `random.value()` | `number` | Uniform random in [0, 1) |
-| `random.range(min, max)` | `number` | Uniform float in [min, max) |
-| `random.rangeFloor(min, max)` | `number` | Random integer in [min, max) |
-| `random.gaussian(mean?, std?)` | `number` | Normal distribution (defaults: mean=0, std=1) |
-| `random.boolean()` | `boolean` | 50/50 coin flip |
-| `random.pick(array)` | `T` | Random element from array |
-| `random.shuffle(array)` | `T[]` | Fisher-Yates shuffle (returns new array, no mutation) |
-| `random.onCircle(radius?)` | `Vec2` | Random point on circle perimeter (default radius=1) |
-| `random.insideCircle(radius?)` | `Vec2` | Random point uniformly inside circle (default radius=1) |
-| `random.noise2D(x, y)` | `number` | 2D simplex noise in [-1, 1] |
-| `random.noise3D(x, y, z)` | `number` | 3D simplex noise in [-1, 1] |
+| Method                         | Return    | Description                                             |
+| ------------------------------ | --------- | ------------------------------------------------------- |
+| `random.value()`               | `number`  | Uniform random in [0, 1)                                |
+| `random.range(min, max)`       | `number`  | Uniform float in [min, max)                             |
+| `random.rangeFloor(min, max)`  | `number`  | Random integer in [min, max)                            |
+| `random.gaussian(mean?, std?)` | `number`  | Normal distribution (defaults: mean=0, std=1)           |
+| `random.boolean()`             | `boolean` | 50/50 coin flip                                         |
+| `random.pick(array)`           | `T`       | Random element from array                               |
+| `random.shuffle(array)`        | `T[]`     | Fisher-Yates shuffle (returns new array, no mutation)   |
+| `random.onCircle(radius?)`     | `Vec2`    | Random point on circle perimeter (default radius=1)     |
+| `random.insideCircle(radius?)` | `Vec2`    | Random point uniformly inside circle (default radius=1) |
+| `random.noise2D(x, y)`         | `number`  | 2D simplex noise in [-1, 1]                             |
+| `random.noise3D(x, y, z)`      | `number`  | 3D simplex noise in [-1, 1]                             |
 
 Noise functions use separate internal seeds, so calling `noise2D` does not advance the main PRNG sequence (and vice versa).
 
@@ -160,17 +162,17 @@ Noise functions use separate internal seeds, so calling `noise2D` does not advan
 
 Import individual functions from `@/lib/geometry`. All return `Polyline` (array of `[x, y]` points) with coordinates in cm.
 
-| Function | Signature | Closed? | Default Segments |
-| --- | --- | --- | --- |
-| `line` | `(x1, y1, x2, y2)` | No | — (2 points) |
-| `rect` | `(x, y, w, h)` | Yes | — (5 points) |
-| `circle` | `(cx, cy, r, segments?)` | Yes | 64 |
-| `arc` | `(cx, cy, r, startAngle, endAngle, segments?)` | No | 64 |
-| `ellipse` | `(cx, cy, rx, ry, segments?)` | Yes | 64 |
-| `polygon` | `(cx, cy, r, sides)` | Yes | — (sides + 1 points) |
-| `quadratic` | `(p0, p1, p2, segments?)` | No | 32 |
-| `cubic` | `(p0, p1, p2, p3, segments?)` | No | 64 |
-| `spiral` | `(cx, cy, rStart, rEnd, turns, segments?)` | No | turns × 64 |
+| Function    | Signature                                      | Closed? | Default Segments     |
+| ----------- | ---------------------------------------------- | ------- | -------------------- |
+| `line`      | `(x1, y1, x2, y2)`                             | No      | — (2 points)         |
+| `rect`      | `(x, y, w, h)`                                 | Yes     | — (5 points)         |
+| `circle`    | `(cx, cy, r, segments?)`                       | Yes     | 64                   |
+| `arc`       | `(cx, cy, r, startAngle, endAngle, segments?)` | No      | 64                   |
+| `ellipse`   | `(cx, cy, rx, ry, segments?)`                  | Yes     | 64                   |
+| `polygon`   | `(cx, cy, r, sides)`                           | Yes     | — (sides + 1 points) |
+| `quadratic` | `(p0, p1, p2, segments?)`                      | No      | 32                   |
+| `cubic`     | `(p0, p1, p2, p3, segments?)`                  | No      | 64                   |
+| `spiral`    | `(cx, cy, rStart, rEnd, turns, segments?)`     | No      | turns × 64           |
 
 Notes:
 
