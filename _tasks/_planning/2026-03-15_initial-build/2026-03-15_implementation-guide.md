@@ -161,9 +161,11 @@ plotter/
 
 ### 1.5 Project Scaffolding
 
-- [ ] Create empty directory structure: `src/components/`, `src/lib/`, `src/hooks/`, `src/plugins/`, `src/template/`, `sketches/`, `exports/`, `scripts/`, `tests/e2e/`
-- [ ] Add `exports/` to `.gitignore`
-- [ ] Create a minimal `app.tsx` with placeholder text ("Plotter Sketch Studio") styled with Tailwind
+- [x] Create empty directory structure: `src/components/`, `src/lib/`, `src/hooks/`, `src/plugins/`, `src/template/`, `sketches/`, `exports/`, `scripts/`, `tests/e2e/`
+  - **Note:** `src/components/` and `src/lib/` already existed from Phase 1.3/1.4. Created remaining directories with `.gitkeep` files so Git tracks them.
+- [x] Add `exports/` to `.gitignore`
+- [x] Create a minimal `app.tsx` with placeholder text ("Plotter Sketch Studio") styled with Tailwind
+  - **Note:** Updated existing `app.tsx` to use `bg-background text-foreground` (shadcn CSS variables) for proper dark theme support, and added `tracking-tight` for polish. Verified via screenshot — dark background, centered white text.
 
 **Acceptance Criteria:**
 

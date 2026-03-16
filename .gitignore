@@ -93,3 +93,6 @@ scripts/test-sandbox-results.md
 
 # Chrome DevTools skill screenshots
 _screenshots/
+
+# SVG exports
+exports/
