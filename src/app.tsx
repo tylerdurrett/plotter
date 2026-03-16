@@ -7,6 +7,7 @@ import {
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ExportPanel } from '@/components/ExportPanel'
 import { PanelLayout } from '@/components/PanelLayout'
+import { PresetPanel } from '@/components/PresetPanel'
 import { SketchSelector } from '@/components/SketchSelector'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -152,6 +153,16 @@ function App() {
     controlPanelRef.current?.setValues({ seed: newSeed })
   }, [])
 
+  const getCurrentParams = useCallback(() => pendingParamsRef.current, [])
+
+  const handleLoadPreset = useCallback(
+    (params: Record<string, unknown>) => {
+      controlPanelRef.current?.setValues(params)
+      scheduleRender(params)
+    },
+    [scheduleRender],
+  )
+
   const leftSidebar = (
     <aside
       data-testid="sidebar-left"
@@ -175,8 +186,11 @@ function App() {
         <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Presets
         </h2>
-        {/* Phase 8: Preset controls replace this placeholder */}
-        <p className="mt-2 text-xs text-muted-foreground">Coming soon</p>
+        <PresetPanel
+          sketchName={activeSketchName}
+          getParams={getCurrentParams}
+          onLoad={handleLoadPreset}
+        />
       </div>
     </aside>
   )

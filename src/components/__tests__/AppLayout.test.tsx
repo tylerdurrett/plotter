@@ -37,6 +37,18 @@ vi.mock('@/hooks/useSketchLoader', () => ({
   useSketchLoader: () => loaderResult,
 }))
 
+vi.mock('@/hooks/usePresets', () => ({
+  usePresets: () => ({
+    presets: [],
+    loading: false,
+    error: null,
+    loadPreset: vi.fn(),
+    savePreset: vi.fn(),
+    deletePreset: vi.fn(),
+    refreshPresets: vi.fn(),
+  }),
+}))
+
 beforeEach(() => {
   loaderResult = { ...defaultLoaderResult, loadSketch: vi.fn() }
 })
@@ -58,10 +70,11 @@ describe('AppLayout — three-zone layout', () => {
     expect(within(left).getByText('Sketches')).toBeInTheDocument()
   })
 
-  it('left sidebar contains "Presets" section', () => {
+  it('left sidebar contains Presets section with PresetPanel', () => {
     render(<App />)
     const left = screen.getByTestId('sidebar-left')
     expect(within(left).getByText('Presets')).toBeInTheDocument()
+    expect(within(left).getByTestId('preset-panel')).toBeInTheDocument()
   })
 
   it('left sidebar shows active sketch name', () => {

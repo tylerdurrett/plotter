@@ -798,13 +798,18 @@ plotter/
 
 ### 8.3 Preset UI in Sidebar
 
-- [ ] Add preset management controls to the left sidebar (below the sketch selector):
+- [x] Add preset management controls to the left sidebar (below the sketch selector):
   - Dropdown or list showing available presets for the active sketch
   - "Save" button — prompts for a name (or uses a text input), saves current params
   - "Load" button / clicking a preset name — loads the preset and updates Leva controls
   - "Delete" button — deletes the selected preset (with confirmation)
-- [ ] When switching sketches, refresh the preset list for the new sketch
-- [ ] Install any additional shadcn/ui components needed (e.g., `dialog`, `input`, `dropdown-menu`)
+  - **Note:** Created `src/components/PresetPanel.tsx` as a self-contained component (follows ExportPanel pattern). Uses `usePresets(sketchName)` internally. Save input + button at top, clickable preset list below with hover-visible trash icon per item. Delete uses `window.confirm()` for simplicity. Preset names are lowercased and hyphenated on save. `app.tsx` passes `getCurrentParams` (reads `pendingParamsRef`) and `handleLoadPreset` (calls `controlPanelRef.setValues` + `scheduleRender`) as callbacks.
+- [x] When switching sketches, refresh the preset list for the new sketch
+  - **Note:** Handled automatically by `usePresets(sketchName)` — the hook auto-fetches when `sketchName` changes.
+- [x] Install any additional shadcn/ui components needed (e.g., `dialog`, `input`, `dropdown-menu`)
+  - **Note:** No new components needed. Used existing `Button` + plain `<input>` (same pattern as ExportPanel) + `lucide-react` `Trash2` icon for delete.
+
+**Note:** 16 new tests added in `PresetPanel.test.tsx`: renders testid, empty state, preset list, loading state, error display, save input/button, disabled when empty, enabled with text, save calls API with lowercased name, clears input after save, Enter key triggers save, null getParams guard, load calls loadPreset then onLoad, delete with confirm, delete cancelled, null sketchName handling. Updated 1 existing `AppLayout` test to verify `preset-panel` testid. Total project test count: 384 passing.
 
 **Acceptance Criteria:**
 
