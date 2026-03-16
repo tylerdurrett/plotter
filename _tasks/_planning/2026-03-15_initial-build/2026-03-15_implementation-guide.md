@@ -750,15 +750,20 @@ plotter/
 
 ### 8.1 Vite Preset Plugin (`src/plugins/vite-plugin-presets.ts`)
 
-- [ ] Create a Vite plugin that adds dev-server middleware for preset CRUD:
+- [x] Create a Vite plugin that adds dev-server middleware for preset CRUD:
   - `GET /__api/presets/:sketch` — list preset files in `sketches/:sketch/presets/`, return JSON array of names
   - `GET /__api/presets/:sketch/:name` — read and return the preset JSON file
   - `POST /__api/presets/:sketch/:name` — write request body as JSON to `sketches/:sketch/presets/:name.json`
   - `DELETE /__api/presets/:sketch/:name` — delete the preset file
-- [ ] Validate inputs: sanitize sketch/preset names to prevent path traversal
-- [ ] Create the `presets/` directory automatically if it doesn't exist on write
-- [ ] Register the plugin in `vite.config.ts`
-- [ ] Write integration tests: start a test server, verify CRUD operations round-trip correctly (or test the middleware handler functions in isolation)
+  - **Note:** Plugin uses `configureServer` hook with Connect middleware. Single middleware function matches `/__api/presets/` prefix and dispatches by HTTP method + URL segment count. Async handler with `.catch()` for 500 errors. `readBody` helper buffers stream chunks with 1MB size limit. Responses re-serialize JSON with `JSON.stringify(parsed, null, 2)` for consistent pretty-printed files. Also updated `test-setup.ts` to guard browser-specific stubs behind `typeof window !== 'undefined'` so the node-environment plugin tests work.
+- [x] Validate inputs: sanitize sketch/preset names to prevent path traversal
+  - **Note:** `isValidName()` uses regex `/^[a-z0-9][a-z0-9_-]*$/` with 100-char max length. Forbids dots, slashes, backslashes, uppercase, and names starting with hyphens. Exported for testing.
+- [x] Create the `presets/` directory automatically if it doesn't exist on write
+  - **Note:** Uses `fs.mkdir(dir, { recursive: true })` before `fs.writeFile()`. LIST returns `[]` when directory doesn't exist (ENOENT caught).
+- [x] Register the plugin in `vite.config.ts`
+  - **Note:** Added `presetsPlugin()` as the last plugin in the array after `sketchHmrPlugin()`. Plugin order doesn't matter for `configureServer` hooks since the middleware checks URL prefix and calls `next()` otherwise.
+- [x] Write integration tests: start a test server, verify CRUD operations round-trip correctly (or test the middleware handler functions in isolation)
+  - **Note:** 33 tests in `src/plugins/__tests__/vite-plugin-presets.test.ts` using `// @vitest-environment node`. Tests use temp directories via `fs.mkdtemp` with cleanup in `afterEach`. Mock `req`/`res` objects built from Node `Readable` streams — no Vite server needed. Covers: isValidName (9 tests), LIST (4), READ (3), WRITE (7), DELETE (3), edge cases (7 including full CRUD round-trip). Total project test count: 351 passing.
 
 **Acceptance Criteria:**
 
