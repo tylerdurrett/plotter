@@ -894,7 +894,7 @@ plotter/
 
 ### 10.1 README (`README.md`)
 
-- [ ] Create a project README with the following sections:
+- [x] Create a project README with the following sections:
   - **Introduction** — what Plotter Sketch Studio is, who it's for (generative artists, pen plotter enthusiasts), and what makes it useful (seeded randomness, live preview, physically accurate SVG export)
   - **Key Features** — bulleted list of top capabilities: real-time canvas preview, parametric controls via Leva, seeded PRNG + simplex noise, geometry primitives, polyline clipping, SVG export with physical units, preset persistence, CLI sketch scaffolding, HMR sketch development
   - **Quick Start** — prerequisites (Node.js, pnpm), install, `pnpm dev`, create a new sketch via CLI, open in browser
@@ -902,6 +902,7 @@ plotter/
   - **Documentation** — links into `docs/` for detailed guides (each link with a one-line description)
   - **Scripts** — table of available `pnpm` scripts (`dev`, `build`, `test`, `test:e2e`, `new-sketch`, `format`, `format:check`, `lint`)
   - **License** — placeholder or actual license
+  - **Note:** All sections implemented as specified. Includes all 10 pnpm scripts in a markdown table. Documentation section links to `docs/hmr.md` (only existing doc; future docs from 10.2–10.5 will be added as they're written). MIT license placeholder included. Verified all file paths and links resolve correctly.
 
 **Acceptance Criteria:**
 
