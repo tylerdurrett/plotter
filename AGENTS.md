@@ -15,7 +15,7 @@ Small changes are one-offs. Larger features use `_tasks/` with status folders: `
 - Never edit files ending in .human.md. Those were created by a person and should stay that way.
 - Always create tests for your code
 - When you fix a bug, add a comment documenting why you're updating the code so we prevent regressions.
-- Never run `pnpm build` while the dev server is running — it overwrites the `.next` directory and causes internal server errors / broken CSS. To type-check without affecting the dev server, use `pnpm --filter @repo/web tsc --noEmit`.
+- I usually start the dev server myself, so you shouldn't need to start it unless you find it is not running. Check what's running first though and if I started it, keep it running.
 - When doing UI work, visually test your code using the chrome devtools skill
 - Do as much as possible to verify your work yourself without asking the user
 - Strive to create minimal code! Be pragmatic. We do not want to overengineer. Our focus is on creating exactly the functionality we need, and keeping the code footprint as small as possible.
