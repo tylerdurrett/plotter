@@ -632,9 +632,12 @@ plotter/
 
 ### 6.3 Create a Second Simple Sketch
 
-- [ ] Create a second sketch (e.g., `sketches/2026-03-15-grid/index.ts`) that draws a simple grid of lines
-- [ ] Params: `rows`, `cols`, `margin`, `paperSize`
-- [ ] Purpose: verify sketch switching works with different param schemas
+- [x] Create a second sketch (e.g., `sketches/2026-03-15-grid/index.ts`) that draws a simple grid of lines
+  - **Note:** Grid sketch draws horizontal and vertical lines evenly spaced across the drawing area using `geometry.line()`. Includes `seed` param for consistency with framework convention (though not used by this deterministic sketch).
+- [x] Params: `rows`, `cols`, `margin`, `paperSize`
+  - **Note:** Also includes `seed` param. `rows` default 8, `cols` default 6. Grid lines span the full drawing area (0 to ctx.width/height).
+- [x] Purpose: verify sketch switching works with different param schemas
+  - **Note:** Verified via browser — both sketches appear in sidebar, switching loads different controls (count/maxRadius vs rows/cols), canvas updates correctly, switching back restores default params with no state bleed. All 266 existing tests still pass.
 
 **Acceptance Criteria:**
 
