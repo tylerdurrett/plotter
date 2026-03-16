@@ -331,7 +331,7 @@ plotter/
 
 ### 3.2 Geometry Primitives (`src/lib/geometry.ts`)
 
-- [ ] Implement polyline-returning functions (all coordinates in cm):
+- [x] Implement polyline-returning functions (all coordinates in cm):
   - `circle(cx, cy, r, segments?)` — closed polyline approximating a circle
   - `arc(cx, cy, r, startAngle, endAngle, segments?)` — open polyline
   - `rect(x, y, w, h)` — closed polyline (5 points, last = first)
@@ -341,13 +341,15 @@ plotter/
   - `quadratic(p0, p1, p2, segments?)` — quadratic Bezier as polyline
   - `cubic(p0, p1, p2, p3, segments?)` — cubic Bezier as polyline
   - `spiral(cx, cy, rStart, rEnd, turns, segments?)` — Archimedean spiral
-- [ ] Write unit tests:
+  - **Note:** 9 pure functions, individually exported (like `math.ts` pattern). `circle` delegates to `ellipse` with equal radii. `polygon` first vertex points up (angle = -PI/2) for visual consistency. Default segments: 64 for circle/ellipse/arc/cubic, 32 for quadratic, turns*64 for spiral. All use `Point`/`Polyline` types from `@/lib/types`.
+- [x] Write unit tests:
   - `circle(0, 0, 1, 4)` returns 5 points forming a square-ish shape (first = last)
   - `rect(0, 0, 2, 3)` returns 5 points with correct corners
   - `line(0, 0, 1, 1)` returns exactly `[[0,0], [1,1]]`
   - `polygon(0, 0, 1, 6)` returns 7 points (hexagon, closed)
   - All functions return `number[][]` (array of [x,y] pairs)
   - Segment count parameter controls point density
+  - **Note:** 45 tests across 10 describe blocks. Covers: closedness, radius correctness, center offset, default segments, cardinal points for ellipse, Bezier midpoints, spiral radius monotonicity, fractional turns, and a cross-function tuple shape check. Total project test count: 199 passing.
 
 **Acceptance Criteria:**
 
