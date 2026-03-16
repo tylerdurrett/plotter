@@ -87,11 +87,14 @@ plotter/
 
 ### 1.2 Install Tailwind CSS
 
-- [ ] Install `tailwindcss` and `@tailwindcss/vite`
-- [ ] Add the Vite plugin to `vite.config.ts`
-- [ ] Create `src/index.css` with Tailwind directives (`@import "tailwindcss"`)
-- [ ] Import `index.css` in `main.tsx`
-- [ ] Verify a Tailwind utility class (e.g., `bg-red-500`) renders correctly
+- [x] Install `tailwindcss` and `@tailwindcss/vite`
+  - **Note:** Installed tailwindcss 4.2.1 and @tailwindcss/vite 4.2.1. Peer dependency warning for Vite 8 (plugin lists ^5.2.0 || ^6 || ^7) but works correctly in practice.
+- [x] Add the Vite plugin to `vite.config.ts`
+  - **Note:** Added `tailwindcss()` before `react()` in the plugins array so CSS transforms run first.
+- [x] Create `src/index.css` with Tailwind directives (`@import "tailwindcss"`)
+- [x] Import `index.css` in `main.tsx`
+- [x] Verify a Tailwind utility class (e.g., `bg-red-500`) renders correctly
+  - **Note:** Verified with `min-h-screen`, `flex`, `items-center`, `justify-center`, `text-4xl`, `font-bold`, `text-neutral-900`. Used `text-neutral-900` instead of `text-white` since dark theme is not yet configured (Phase 1.3). Tailwind preflight/reset also confirmed active.
 
 **Note:** Tailwind v4 uses CSS-first configuration via `@theme` directives — there is no `tailwind.config.ts` file. All theme customization goes in `src/index.css`.
 
