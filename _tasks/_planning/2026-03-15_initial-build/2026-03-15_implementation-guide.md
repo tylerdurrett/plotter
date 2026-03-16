@@ -710,20 +710,27 @@ plotter/
 
 ### 7.3 Export Panel (`src/components/ExportPanel.tsx`)
 
-- [ ] Create `ExportPanel` component with controls for:
+- [x] Create `ExportPanel` component with controls for:
   - Stroke width (number input, default 0.03)
   - Stroke color (color input, default black)
   - Output units (select: cm, in, mm)
   - "Export SVG" button
   - "Copy SVG" button (copies SVG markup to clipboard via `navigator.clipboard.writeText`)
-- [ ] On export:
+  - **Note:** Used native HTML inputs (`<input type="number">`, `<input type="color">`, `<select>`) styled with Tailwind to match the dark theme. Only 3 controls — doesn't justify installing shadcn form components. Controls use `bg-secondary text-foreground border-border rounded-md` for consistent dark theme appearance.
+- [x] On export:
   - Clip polylines to paper bounds (with margin) using `clip.ts`
   - Serialize to SVG using `svg.ts` with current export settings
   - Trigger browser download of the SVG file
   - Filename format: `{sketch-name}_{timestamp}.svg`
-- [ ] On copy: same clip + serialize pipeline, then write to clipboard instead of downloading
-- [ ] Optionally show path statistics: total polyline count, total point count
-- [ ] Place the export panel in the right sidebar below Leva controls
+  - **Note:** Created `src/lib/export.ts` with pure utility functions for the export pipeline: `translateToPage` (drawing-area → paper coords), `buildSVGExport` (translate → clip → serialize), `downloadSVG` (Blob + createObjectURL + anchor click), `makeExportFilename` (timestamped filename). Polylines are translated by `(margin, margin)` before clipping since sketches work in drawing-area coordinates (0,0 = top-left of margin box).
+- [x] On copy: same clip + serialize pipeline, then write to clipboard instead of downloading
+  - **Note:** `copySVGToClipboard` uses `navigator.clipboard.writeText` with try/catch fallback. Copy button shows brief "Copied!" feedback for 1.5 seconds via state timeout with proper useEffect cleanup on unmount.
+- [x] Optionally show path statistics: total polyline count, total point count
+  - **Note:** Stats line shows `{N} paths · {M} pts` computed via `useMemo` on the `lines` prop. Displayed between the Export header and controls.
+- [x] Place the export panel in the right sidebar below Leva controls
+  - **Note:** Replaced the "Coming soon" placeholder in `app.tsx` (right sidebar). ExportPanel receives `lines`, `paperSize`, `margin`, and `sketchName` as props. Export option state (strokeWidth, strokeColor, units) is local to ExportPanel since no other component needs it.
+
+**Note:** Created `src/lib/export.ts` with 5 pure utility functions (independently testable), plus `src/components/ExportPanel.tsx` as a self-contained UI component. `SVGExportOptions` type reuses existing `ExportOptions` from `types.ts` via `Omit<ExportOptions, 'width' | 'height'>`. Uses `BBox` type from `clip.ts` for clip bounds. 26 new tests added (15 in `export.test.ts`, 11 in `ExportPanel.test.tsx`). Total project test count: 318 passing.
 
 **Acceptance Criteria:**
 

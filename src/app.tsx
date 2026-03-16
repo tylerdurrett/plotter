@@ -5,6 +5,7 @@ import {
   type ControlPanelHandle,
 } from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { ExportPanel } from '@/components/ExportPanel'
 import { PanelLayout } from '@/components/PanelLayout'
 import { SketchSelector } from '@/components/SketchSelector'
 import { Button } from '@/components/ui/button'
@@ -223,13 +224,12 @@ function App() {
         />
       </div>
       <Separator />
-      <div className="p-3">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Export
-        </h2>
-        {/* Phase 7: ExportPanel component replaces this placeholder */}
-        <p className="mt-2 text-xs text-muted-foreground">Coming soon</p>
-      </div>
+      <ExportPanel
+        lines={lines}
+        paperSize={paperSize}
+        margin={margin}
+        sketchName={activeSketchName ?? 'sketch'}
+      />
     </aside>
   ) : null
 
