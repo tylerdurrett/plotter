@@ -1044,3 +1044,7 @@ The library layer already supports custom `{ width, height }` objects via `getPa
 
 1. **Custom dimension entry** — Let the user type arbitrary width/height values (in cm or inches) directly in the controls panel, instead of only choosing from the preset list.
 2. **Save/manage custom presets** — Let the user name and persist custom paper sizes so they appear alongside the built-in presets (letter, a4, etc.) in the dropdown for future sessions.
+
+### Randomize Parameters
+
+Add a "Randomize" button that generates random values for all numeric parameters within their declared `min`/`max` ranges (respecting `step`). Each parameter also gets a lock toggle — locked parameters are excluded from randomization, letting the user pin values they like while exploring the rest of the parameter space. Select/options parameters (e.g., `paperSize`) should be excluded from randomization by default.
