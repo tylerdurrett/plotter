@@ -134,11 +134,12 @@ function SketchViewer({
       ctx.setLineDash([])
     }
 
-    // Draw polylines
+    // Draw polylines — translate by margin since sketches work in drawing-area coordinates
     ctx.strokeStyle = COLORS.ink
     ctx.lineWidth = 1
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
+    ctx.translate(margin * scale, margin * scale)
 
     for (const polyline of lines) {
       if (polyline.length < 2) continue
