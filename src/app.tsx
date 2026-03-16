@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { SketchViewer } from '@/components/SketchViewer'
+import { useLevaParamHover } from '@/hooks/useLevaParamHover'
 import { useSketchLoader } from '@/hooks/useSketchLoader'
 import { createSketchContext } from '@/lib/context'
 import { extractParamValues } from '@/lib/params'
@@ -35,6 +36,8 @@ function App() {
   } = useSketchLoader()
 
   const controlPanelRef = useRef<ControlPanelHandle>(null)
+  // Re-attach when sketch changes since ControlPanel remounts (new Leva DOM)
+  const highlightMargin = useLevaParamHover('margin', activeSketchName)
 
   // Render output state — updated imperatively from the rAF loop
   const [lines, setLines] = useState<Polyline[]>([])
@@ -189,6 +192,7 @@ function App() {
           lines={lines}
           paperSize={paperSize}
           margin={margin}
+          highlightMargin={highlightMargin}
           className="h-full"
         />
       )}

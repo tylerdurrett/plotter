@@ -8,6 +8,8 @@ interface SketchViewerProps {
   paperSize: PaperSize
   /** Margin in cm — draws dashed guide lines when > 0 */
   margin?: number
+  /** When true, draws margin guide on top of sketch lines in highlight color */
+  highlightMargin?: boolean
   className?: string
 }
 
@@ -19,6 +21,7 @@ const COLORS = {
   paper: '#ffffff',
   paperBorder: 'rgba(0, 0, 0, 0.1)',
   marginGuide: 'rgba(0, 0, 0, 0.15)',
+  marginGuideHighlight: '#ff1493',
   ink: '#000000',
 } as const
 
@@ -54,10 +57,25 @@ function computeLayout(
   return { displayW, displayH, scale, offsetX, offsetY }
 }
 
+function drawMarginGuide(
+  ctx: CanvasRenderingContext2D,
+  mPx: number,
+  displayW: number,
+  displayH: number,
+  color: string,
+) {
+  ctx.setLineDash([4, 4])
+  ctx.strokeStyle = color
+  ctx.lineWidth = 1
+  ctx.strokeRect(mPx, mPx, displayW - mPx * 2, displayH - mPx * 2)
+  ctx.setLineDash([])
+}
+
 function SketchViewer({
   lines,
   paperSize,
   margin = 0,
+  highlightMargin = false,
   className,
 }: SketchViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -124,22 +142,20 @@ function SketchViewer({
     ctx.lineWidth = 1
     ctx.strokeRect(0, 0, displayW, displayH)
 
-    // Margin guides (dashed)
-    if (margin > 0) {
-      const mPx = margin * scale
-      ctx.setLineDash([4, 4])
-      ctx.strokeStyle = COLORS.marginGuide
-      ctx.lineWidth = 1
-      ctx.strokeRect(mPx, mPx, displayW - mPx * 2, displayH - mPx * 2)
-      ctx.setLineDash([])
+    const mPx = margin * scale
+
+    // Margin guides behind lines (default — faint gray)
+    if (margin > 0 && !highlightMargin) {
+      drawMarginGuide(ctx, mPx, displayW, displayH, COLORS.marginGuide)
     }
 
     // Draw polylines — translate by margin since sketches work in drawing-area coordinates
+    ctx.save()
+    ctx.translate(mPx, mPx)
     ctx.strokeStyle = COLORS.ink
     ctx.lineWidth = 1
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-    ctx.translate(margin * scale, margin * scale)
 
     for (const polyline of lines) {
       if (polyline.length < 2) continue
@@ -150,9 +166,15 @@ function SketchViewer({
       }
       ctx.stroke()
     }
+    ctx.restore()
+
+    // Margin guides on top of lines (highlighted — bright pink)
+    if (margin > 0 && highlightMargin) {
+      drawMarginGuide(ctx, mPx, displayW, displayH, COLORS.marginGuideHighlight)
+    }
 
     ctx.restore()
-  }, [lines, paperSize, margin, containerSize])
+  }, [lines, paperSize, margin, highlightMargin, containerSize])
 
   return (
     <div

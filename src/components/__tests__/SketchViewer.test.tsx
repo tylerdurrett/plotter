@@ -36,6 +36,18 @@ describe('SketchViewer', () => {
     expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
   })
 
+  it('renders without crashing with highlightMargin enabled', () => {
+    render(
+      <SketchViewer
+        lines={[]}
+        paperSize={letterSize}
+        margin={1.5}
+        highlightMargin
+      />,
+    )
+    expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+  })
+
   it('accepts optional className prop', () => {
     const { container } = render(
       <SketchViewer
