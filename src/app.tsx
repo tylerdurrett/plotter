@@ -115,6 +115,30 @@ function App() {
     scheduleRender(paramValues)
   }, [activeSketch, activeSketchName, scheduleRender])
 
+  // Re-render when sketch code is hot-updated (activeSketch reference
+  // changes but name stays the same). The setup guard above correctly
+  // prevents setup() from re-running; we just need a fresh render().
+  const prevSketchRef = useRef<SketchModule | null>(null)
+  useEffect(() => {
+    if (!activeSketch) return
+
+    // Skip initial mount — the setup effect handles that render
+    if (prevSketchRef.current === null) {
+      prevSketchRef.current = activeSketch
+      return
+    }
+
+    // Skip if reference hasn't changed
+    if (prevSketchRef.current === activeSketch) return
+    prevSketchRef.current = activeSketch
+
+    // HMR: re-render with the user's current param values,
+    // falling back to defaults if no prior render has occurred
+    const params =
+      pendingParamsRef.current ?? extractParamValues(activeSketch.params)
+    scheduleRender(params)
+  }, [activeSketch, scheduleRender])
+
   const handleRandomizeSeed = useCallback(() => {
     const newSeed = Math.floor(Math.random() * 10000)
     controlPanelRef.current?.setValues({ seed: newSeed })

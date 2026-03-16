@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { SketchModule } from '@/lib/types'
 
 /**
@@ -109,6 +109,40 @@ export function useSketchLoader(): UseSketchLoaderResult {
     },
     [importMap],
   )
+
+  // Listen for sketch HMR updates. Each sketch file calls
+  // import.meta.hot.accept() inline and dispatches a 'sketch-hmr-update'
+  // CustomEvent. We swap in the new module to preserve Leva state.
+  useEffect(() => {
+    if (!import.meta.hot) return
+
+    const handler = (e: Event) => {
+      const { path, module } = (e as CustomEvent).detail as {
+        path: string
+        module: Record<string, unknown>
+      }
+
+      const match = path.match(/sketches\/([^/]+)\//)
+      if (!match) return
+      const updatedName = match[1]
+
+      // Only hot-swap if this is the currently active sketch
+      if (updatedName !== active?.name) return
+
+      try {
+        const validated = validateSketchModule(module)
+        setActive({ sketch: validated, name: updatedName })
+      } catch (err) {
+        console.warn(
+          '[HMR] Updated sketch failed validation, keeping previous version:',
+          err instanceof Error ? err.message : err,
+        )
+      }
+    }
+
+    window.addEventListener('sketch-hmr-update', handler)
+    return () => window.removeEventListener('sketch-hmr-update', handler)
+  }, [active?.name])
 
   return {
     sketchList,

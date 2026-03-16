@@ -523,9 +523,14 @@ plotter/
 
 ### 5.3 HMR Verification
 
-- [ ] Verify that editing the concentric circles sketch code (e.g., changing default param values or render logic) triggers Vite HMR and the preview updates without manual browser refresh
-- [ ] Verify that Leva parameter state persists across HMR updates (values the user set don't reset)
-- [ ] Document any HMR caveats or workarounds needed
+- [x] Verify that editing the concentric circles sketch code (e.g., changing default param values or render logic) triggers Vite HMR and the preview updates without manual browser refresh
+  - **Note:** Created a Vite plugin (`src/plugins/vite-plugin-sketch-hmr.ts`) that injects `import.meta.hot.accept()` into sketch modules during the `transform` phase (dev mode only). The accept callback dispatches a `sketch-hmr-update` CustomEvent on `window`. `useSketchLoader` listens for this event and swaps the active sketch module. `app.tsx` detects the reference change via a `prevSketchRef` and triggers a re-render with current param values. Verified via Puppeteer: editing `render()` to halve circle radii updated the preview within ~1 second. Sketch source files require zero HMR boilerplate.
+- [x] Verify that Leva parameter state persists across HMR updates (values the user set don't reset)
+  - **Note:** Confirmed via automated screenshots. ControlPanel uses `key={activeSketchName}` — since the name doesn't change on HMR, the Leva store and all slider values persist. Verified: seed=42, count=5, maxRadius=8.0, margin=1.5 all preserved after sketch code edit.
+- [x] Document any HMR caveats or workarounds needed
+  - **Note:** Created `docs/hmr.md`. Key caveats: (1) Param schema changes (add/remove/rename params) require a page refresh. (2) `setup()` state is stale after HMR — only `render()` is called with the new code. (3) Only files matching `sketches/*/index.ts` get HMR; changes to shared helper files cause a full reload.
+
+**Divergence from plan:** Originally planned a `registerSketchHmr()` utility function. Testing revealed Vite requires `import.meta.hot.accept()` to appear in the module's own compiled output for static analysis. A utility function wrapping the call doesn't work. Instead, created a Vite plugin (`vite-plugin-sketch-hmr`) that auto-injects the HMR acceptance code during the `transform` phase — the same approach `@vitejs/plugin-react` uses for React Refresh. Sketch files stay completely clean. Total project test count: 239 passing (unchanged from Phase 5.2).
 
 **Acceptance Criteria:**
 
