@@ -73,12 +73,14 @@ plotter/
 
 ### 1.1 Initialize Vite + React + TypeScript
 
-- [ ] Run `npm create vite@latest` with React + TypeScript template (or manually create `package.json`, `vite.config.ts`, `tsconfig.json`, `index.html`, `src/main.tsx`)
-- [ ] Verify `npm run dev` serves a page in the browser
-- [ ] Configure `tsconfig.json` with path alias `@/` → `src/` for clean imports
+- [x] Run `pnpm create vite@latest` with React + TypeScript template (or manually create `package.json`, `vite.config.ts`, `tsconfig.json`, `index.html`, `src/main.tsx`)
+  - **Note:** Manually created files using scaffolded template as reference (to avoid conflicts with existing repo files). Used Vite 8, React 19.2, TypeScript 5.9.
+- [x] Verify `pnpm dev` serves a page in the browser
+- [x] Configure `tsconfig.json` with path alias `@/` → `src/` for clean imports
+  - **Note:** Alias configured in both `tsconfig.app.json` (`paths`) and `vite.config.ts` (`resolve.alias`). Validated via `@/app` import in `main.tsx`.
 
 **Acceptance Criteria:**
-- `npm run dev` starts the Vite dev server and renders a page in the browser
+- `pnpm dev` starts the Vite dev server and renders a page in the browser
 - TypeScript compilation succeeds with no errors
 - Path alias `@/` resolves correctly in imports
 
@@ -96,8 +98,8 @@ plotter/
 
 ### 1.3 Initialize shadcn/ui
 
-- [ ] Run `npx shadcn@latest init` to generate `components.json` and `src/lib/utils.ts` (the `cn()` helper)
-- [ ] Install one test component (e.g., Button) to verify the pipeline: `npx shadcn@latest add button`
+- [ ] Run `pnpm dlx shadcn@latest init` to generate `components.json` and `src/lib/utils.ts` (the `cn()` helper)
+- [ ] Install one test component (e.g., Button) to verify the pipeline: `pnpm dlx shadcn@latest add button`
 - [ ] Render the Button component in `app.tsx` to confirm it works
 - [ ] Remove the test Button usage from `app.tsx` (keep the component file for later use)
 
@@ -114,7 +116,7 @@ plotter/
 - [ ] Add `"test"` script to `package.json`
 
 **Acceptance Criteria:**
-- `npm run test` executes Vitest and the trivial test passes
+- `pnpm test` executes Vitest and the trivial test passes
 - Test environment is configured with jsdom for future component tests
 
 ### 1.5 Project Scaffolding
@@ -126,7 +128,7 @@ plotter/
 **Acceptance Criteria:**
 - All directories exist
 - `exports/` is gitignored
-- `npm run dev` shows the placeholder app
+- `pnpm dev` shows the placeholder app
 
 ---
 
@@ -309,7 +311,7 @@ plotter/
 - [ ] Verify in the browser: five concentric circles appear on a paper-shaped canvas
 
 **Acceptance Criteria:**
-- `npm run dev` shows the concentric circles sketch rendering in the canvas
+- `pnpm dev` shows the concentric circles sketch rendering in the canvas
 - Circles are centered and properly scaled to the paper dimensions
 - No console errors
 
@@ -588,7 +590,7 @@ plotter/
 - [ ] Handle edge cases: name with special characters, sketch already exists
 
 **Acceptance Criteria:**
-- `npm run new-sketch -- --name "test sketch"` creates `sketches/2026-03-15-test-sketch/index.ts`
+- `pnpm new-sketch -- --name "test sketch"` creates `sketches/2026-03-15-test-sketch/index.ts`
 - The created sketch is immediately discoverable by the app (appears in sketch selector on next load)
 - Running the command twice with the same name fails gracefully (doesn't overwrite)
 - The created sketch renders correctly in the viewer
@@ -607,7 +609,7 @@ plotter/
 - [ ] Add `"test:e2e"` script to `package.json`
 
 **Acceptance Criteria:**
-- `npm run test:e2e` runs the Playwright test and it passes
+- `pnpm test:e2e` runs the Playwright test and it passes
 - The test exercises the full pipeline: load → interact → export
 - Test completes in under 30 seconds
 
