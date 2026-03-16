@@ -184,14 +184,15 @@ plotter/
 
 ### 2.1 Type Definitions (`src/lib/types.ts`)
 
-- [ ] Define `Vec2` as `[number, number]`
-- [ ] Define `Vec3` as `[number, number, number]`
-- [ ] Define `Point` as `Vec2` (alias — compatible everywhere `Vec2` is used)
-- [ ] Define `Polyline` as `Point[]`
-- [ ] Define `PaperSize` as `{ width: number; height: number }` (cm)
-- [ ] Define `SketchContext` with `width`, `height` (cm), `createRandom(seed)` factory, and paper metadata
-- [ ] Define `SketchModule` interface: `params`, optional `setup(ctx)`, `render(ctx, params) → number[][][]`
-- [ ] Define `ExportOptions` interface: `width`, `height`, `units`, `strokeWidth`, `strokeColor`
+- [x] Define `Vec2` as `[number, number]`
+- [x] Define `Vec3` as `[number, number, number]`
+- [x] Define `Point` as `Vec2` (alias — compatible everywhere `Vec2` is used)
+- [x] Define `Polyline` as `Point[]`
+- [x] Define `PaperSize` as `{ width: number; height: number }` (cm)
+- [x] Define `SketchContext` with `width`, `height` (cm), `createRandom(seed)` factory, and paper metadata
+- [x] Define `SketchModule` interface: `params`, optional `setup(ctx)`, `render(ctx, params) → number[][][]`
+  - **Note:** `render` return type is `Polyline[]` (which is `Point[][]` = `[number, number][][]`) for type safety. Also added `Random` interface to fully type the `createRandom` factory return value, based on Phase 3.1 spec. `SketchContext.paper` includes `name`, `width`, `height`, and `margin` fields.
+- [x] Define `ExportOptions` interface: `width`, `height`, `units`, `strokeWidth`, `strokeColor`
 
 **Acceptance Criteria:**
 
