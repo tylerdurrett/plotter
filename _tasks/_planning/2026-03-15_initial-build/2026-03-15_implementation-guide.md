@@ -41,7 +41,8 @@ plotter/
 │   ├── lib/
 │   │   ├── types.ts                 # SketchModule, SketchContext, etc.
 │   │   ├── paper.ts                 # Paper size constants (cm)
-│   │   ├── math.ts                  # lerp, clamp, mapRange, etc.
+│   │   ├── math.ts                  # lerp, clamp, mapRange, etc. (scalar)
+│   │   ├── vec.ts                   # Vec2/Vec3 ops + 3D→2D projection
 │   │   ├── alea.d.ts                # Type declaration for `alea` package
 │   │   ├── random.ts                # Seeded PRNG + simplex noise
 │   │   ├── geometry.ts              # Polyline primitives
@@ -175,15 +176,17 @@ plotter/
 
 ---
 
-## Phase 2: Core Type System & Paper Constants
+## Phase 2: Core Type System, Paper Constants & Math Utilities
 
-**Purpose:** Establish the foundational type definitions and paper size data that all subsequent code depends on.
+**Purpose:** Establish the foundational type definitions, paper size data, and math/vector utilities that all subsequent code depends on.
 
-**Rationale:** Types must exist before any module can implement the sketch contract. Paper sizes are pure data with no dependencies — they are the simplest module to build and test first, and they are needed by the canvas viewer, SVG exporter, and sketch context.
+**Rationale:** Types must exist before any module can implement the sketch contract. Paper sizes are pure data with no dependencies — they are the simplest module to build and test first, and they are needed by the canvas viewer, SVG exporter, and sketch context. Scalar math and vector utilities are pure functions with no dependencies beyond the types — completing them here means the full math toolkit is available when geometry and random modules are built in Phase 3.
 
 ### 2.1 Type Definitions (`src/lib/types.ts`)
 
-- [ ] Define `Point` as `[number, number]`
+- [ ] Define `Vec2` as `[number, number]`
+- [ ] Define `Vec3` as `[number, number, number]`
+- [ ] Define `Point` as `Vec2` (alias — compatible everywhere `Vec2` is used)
 - [ ] Define `Polyline` as `Point[]`
 - [ ] Define `PaperSize` as `{ width: number; height: number }` (cm)
 - [ ] Define `SketchContext` with `width`, `height` (cm), `createRandom(seed)` factory, and paper metadata
@@ -207,15 +210,57 @@ plotter/
 - `getPaperSize('a4', 'landscape')` returns `{ width: 29.7, height: 21.0 }`
 - All paper size tests pass
 
-### 2.3 Math Utilities (`src/lib/math.ts`)
+### 2.3 Scalar Math Utilities (`src/lib/math.ts`)
 
-- [ ] Implement: `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod` (true modulo, not JS `%`), `degToRad`, `radToDeg`, `smoothstep`, `dist`, `distSq`, `angleBetween`, `lerpArray` (component-wise vector interpolation)
-- [ ] Write unit tests for each function with edge cases (e.g., `clamp` at boundaries, `lerp` at 0 and 1, `mod` with negative numbers, `dist` with known triangles, `lerpArray` with 2D and 3D vectors)
+- [ ] Implement: `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod` (true modulo, not JS `%`), `degToRad`, `radToDeg`, `smoothstep`
+- [ ] Write unit tests for each function with edge cases (e.g., `clamp` at boundaries, `lerp` at 0 and 1, `mod` with negative numbers)
 
 **Acceptance Criteria:**
 
 - All math functions are pure, dependency-free, and exported
 - All math tests pass with correct floating-point handling (use `toBeCloseTo` where appropriate)
+- `math.ts` contains only scalar (single-number) operations — vector ops live in `vec.ts`
+
+### 2.4 Vector Utilities (`src/lib/vec.ts`)
+
+- [ ] Implement dimension-generic functions (work on both `Vec2` and `Vec3` via `number[]` iteration internally):
+  - `vec.add(a, b)` — component-wise addition
+  - `vec.sub(a, b)` — component-wise subtraction
+  - `vec.scale(a, s)` — scalar multiply
+  - `vec.negate(a)` — flip sign
+  - `vec.dot(a, b)` — dot product
+  - `vec.len(a)` — length / magnitude
+  - `vec.lenSq(a)` — squared length (avoids sqrt)
+  - `vec.normalize(a)` — unit vector
+  - `vec.dist(a, b)` — distance between two points
+  - `vec.distSq(a, b)` — squared distance
+  - `vec.lerp(a, b, t)` — linear interpolation
+  - `vec.angleBetween(a, b)` — angle between two vectors
+- [ ] Implement 2D-specific functions:
+  - `vec.perpendicular(a)` — 90° rotation (`[-y, x]`)
+- [ ] Implement 3D-specific functions:
+  - `vec.cross(a, b)` — cross product (returns `Vec3`)
+- [ ] Implement 3D→2D projection functions:
+  - `vec.projectOrthographic(p, axis)` — drop one axis (e.g., drop Z for top-down)
+  - `vec.projectPerspective(p, focalLength)` — simple perspective divide
+- [ ] Export as a `vec` namespace object to avoid name collisions with `math.ts` scalar functions
+- [ ] All functions return new arrays (no mutation)
+- [ ] Write unit tests:
+  - `vec.add([1, 2], [3, 4])` returns `[4, 6]`
+  - `vec.add([1, 2, 3], [4, 5, 6])` returns `[5, 7, 9]` (works for 3D)
+  - `vec.dot([1, 0], [0, 1])` returns `0` (perpendicular)
+  - `vec.normalize([3, 4])` returns `[0.6, 0.8]`
+  - `vec.cross([1,0,0], [0,1,0])` returns `[0,0,1]`
+  - `vec.perpendicular([1, 0])` returns `[0, 1]`
+  - `vec.projectPerspective([x, y, z], f)` returns correct `[x*f/z, y*f/z]`
+  - `vec.dist` matches manual calculation for known triangles
+
+**Acceptance Criteria:**
+
+- All vector functions are pure and return new arrays (no mutation)
+- Dimension-generic functions work on both `Vec2` and `Vec3` inputs
+- `vec.*` namespace avoids collisions with `math.ts` scalar functions like `lerp`
+- All vector tests pass with correct floating-point handling
 
 ---
 
@@ -705,13 +750,14 @@ plotter/
 Phase 1 (Bootstrap)
   1.1 → 1.2 → 1.3 → 1.4 → 1.5
                                 \
-Phase 2 (Types & Paper)          |
+Phase 2 (Types, Paper & Utilities)|
   2.1 → 2.2                     |
   2.1 → 2.3                     |
+  2.1 → 2.4                     |
          |                       |
 Phase 3 (Random & Geometry)      |
   3.1 (depends on 2.1, 2.3)     |
-  3.2 (depends on 2.1, 2.3)     |
+  3.2 (depends on 2.1, 2.3, 2.4)|
          |                       |
 Phase 4 (Canvas & Sketches)      |
   4.1 → 4.2 → 4.5              |
@@ -747,6 +793,9 @@ Note: Phases 7.1 and 7.2 (SVG serialization and clipping) are pure library code 
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Phase 1 includes Vitest setup                             | Tests are needed immediately in Phase 2; avoids a "set up testing later" debt                                                        |
 | Types are a separate phase (2) before random/geometry (3) | Every module depends on `types.ts`; establishing the type contract first prevents rework                                             |
+| `math.ts` (scalar) and `vec.ts` (vector) are separate     | Avoids name collisions (`lerp` vs `vec.lerp`); keeps scalar math simple; `vec.*` namespace signals "operates on arrays"              |
+| Vector functions are dimension-generic                     | 2D and 3D ops share one implementation via `number[]` iteration; avoids duplicating a `vec2` and `vec3` module                       |
+| `Vec2` aliases `Point`                                     | No conversion needed between vector math results and polyline/geometry functions; everything is `[number, number]`                    |
 | Canvas preview before Leva controls                       | Seeing something render is the highest-value early milestone; controls without a viewer aren't testable                              |
 | Leva in its own phase (5), not bundled with viewer (4)    | Leva integration has its own complexity (transient updates, schema mapping); isolating it makes debugging easier                     |
 | App shell (6) after controls (5)                          | Sketch switching must re-initialize Leva — testing this requires controls to be working first                                        |
