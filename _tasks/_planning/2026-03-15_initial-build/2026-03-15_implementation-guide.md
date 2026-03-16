@@ -655,25 +655,29 @@ plotter/
 
 ### 7.1 SVG Serialization (`src/lib/svg.ts`)
 
-- [ ] Implement `polylinesToSVG(lines, options)` where options include:
+- [x] Implement `polylinesToSVG(lines, options)` where options include:
   - `width`, `height` — paper dimensions in cm
   - `units` — `'cm'` | `'in'` | `'mm'` (default `'cm'`)
   - `strokeWidth` — in paper units (default 0.03 cm ≈ fine pen)
   - `strokeColor` — CSS color string (default `'black'`)
-- [ ] Generate SVG with:
+  - **Note:** `width` and `height` are required; all other options have defaults. Function signature uses `Pick & Partial<Omit>` to enforce this at the type level. Polylines with < 2 points are filtered out. Point coordinates rounded to 4 decimal places. Stroke width is also converted to target units. XML attribute values are escaped for special characters.
+- [x] Generate SVG with:
   - `<svg>` element with `width` and `height` in specified units (e.g., `width="21.59cm"`)
   - `viewBox="0 0 {width} {height}"` matching paper dimensions in cm
   - `xmlns` attribute for valid SVG
   - Each polyline as a `<polyline points="x1,y1 x2,y2 ..." />` element
   - Global stroke attributes: `fill="none"`, `stroke`, `stroke-width`, `stroke-linecap="round"`, `stroke-linejoin="round"`
-- [ ] Handle unit conversion: if output units are `'in'`, convert cm dimensions to inches for `width`/`height` attributes (viewBox stays in cm)
-- [ ] Write unit tests:
+  - **Note:** Stroke attributes are grouped in a `<g>` wrapper element rather than repeated on each polyline. Stroke width is converted to target units (e.g., 0.03cm → 0.3mm) for physical accuracy.
+- [x] Handle unit conversion: if output units are `'in'`, convert cm dimensions to inches for `width`/`height` attributes (viewBox stays in cm)
+  - **Note:** Conversion factors: cm→in = 1/2.54, cm→mm = 10. Both dimensions and stroke width are converted.
+- [x] Write unit tests:
   - Output is valid XML/SVG (starts with `<svg`, has xmlns)
   - `width` and `height` attributes contain correct values and units
   - `viewBox` matches paper dimensions
   - Correct number of `<polyline>` elements
   - A single line `[[0,0], [1,1]]` produces `points="0,0 1,1"`
   - Unit conversion: letter paper in inches = `width="8.5in"`
+  - **Note:** 14 tests covering: SVG structure/xmlns, cm/in/mm unit conversion for dimensions, viewBox in cm regardless of units, polyline count, point serialization, empty input, sub-2-point filtering, custom stroke attributes, defaults, coordinate rounding, stroke width unit conversion, and XML attribute escaping. Total project test count: 285 passing.
 
 **Acceptance Criteria:**
 
@@ -1003,3 +1007,14 @@ Note: Phases 7.1 and 7.2 (SVG serialization and clipping) are pure library code 
 | shadcn/ui initialized in Phase 1, used in Phase 6         | Config files and utils are needed early; actual components are added as needed per phase                                             |
 | Second sketch in Phase 6 (not Phase 4)                    | Phase 4 only needs one sketch to prove the pipeline; the second sketch exists to test sketch _switching_, which is a Phase 6 concern |
 | Documentation last (10)                                   | Docs describe the finished system; writing them earlier would require constant revision as APIs evolve through Phases 4–9            |
+
+---
+
+## Future Work
+
+### Custom Paper Sizes in the UI
+
+The library layer already supports custom `{ width, height }` objects via `getPaperSize`, but the UI only exposes a preset dropdown. A future feature should add:
+
+1. **Custom dimension entry** — Let the user type arbitrary width/height values (in cm or inches) directly in the controls panel, instead of only choosing from the preset list.
+2. **Save/manage custom presets** — Let the user name and persist custom paper sizes so they appear alongside the built-in presets (letter, a4, etc.) in the dropdown for future sessions.
