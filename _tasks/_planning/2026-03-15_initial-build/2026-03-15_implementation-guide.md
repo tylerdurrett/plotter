@@ -81,6 +81,7 @@ plotter/
   - **Note:** Alias configured in both `tsconfig.app.json` (`paths`) and `vite.config.ts` (`resolve.alias`). Validated via `@/app` import in `main.tsx`.
 
 **Acceptance Criteria:**
+
 - `pnpm dev` starts the Vite dev server and renders a page in the browser
 - TypeScript compilation succeeds with no errors
 - Path alias `@/` resolves correctly in imports
@@ -99,9 +100,30 @@ plotter/
 **Note:** Tailwind v4 uses CSS-first configuration via `@theme` directives — there is no `tailwind.config.ts` file. All theme customization goes in `src/index.css`.
 
 **Acceptance Criteria:**
+
 - Tailwind utility classes apply correctly in rendered output
 - No CSS build errors
 - No `tailwind.config.ts` file (Tailwind v4 CSS-first config)
+
+### 1.2.5 Configure Prettier
+
+- [x] Install `prettier` and `eslint-config-prettier` (disables ESLint rules that conflict with Prettier)
+  - **Note:** Installed prettier 3.8.1 and eslint-config-prettier 10.1.8.
+- [x] Create `.prettierrc` with project preferences: `semi: false`, `singleQuote: true`, `trailingComma: "all"`, `printWidth: 80`
+- [x] Add `"prettier"` to the end of the ESLint `extends` array in `eslint.config.js` (via `eslint-config-prettier`) so formatting rules don't clash
+  - **Note:** Imported `eslint-config-prettier` and added it as the last config entry in `tseslint.config()` so it disables any formatting rules from earlier configs.
+- [x] Add `"format"` and `"format:check"` scripts to `package.json`:
+  - `"format": "prettier --write ."`
+  - `"format:check": "prettier --check ."`
+- [x] Create `.prettierignore` to skip `dist/`, `node_modules/`, `exports/`, and `.claude/`
+- [x] Run `pnpm format` to format all existing files
+- [x] Verify `pnpm lint` and `pnpm format:check` both pass with no conflicts
+
+**Acceptance Criteria:**
+
+- `pnpm format:check` passes with no unformatted files
+- `pnpm lint` passes with no conflicts between ESLint and Prettier
+- `.prettierrc` exists with chosen style preferences
 
 ### 1.3 Initialize shadcn/ui
 
@@ -112,6 +134,7 @@ plotter/
 - [ ] Remove the test Button usage from `app.tsx` (keep the component file for later use)
 
 **Acceptance Criteria:**
+
 - `components.json` exists with correct paths
 - `src/components/ui/button.tsx` exists and exports a working Button component
 - `cn()` utility is available at `@/lib/utils`
@@ -125,6 +148,7 @@ plotter/
 - [ ] Add `"test"` script to `package.json`
 
 **Acceptance Criteria:**
+
 - `pnpm test` executes Vitest and the trivial test passes
 - Test environment is configured with jsdom for future component tests
 
@@ -135,6 +159,7 @@ plotter/
 - [ ] Create a minimal `app.tsx` with placeholder text ("Plotter Sketch Studio") styled with Tailwind
 
 **Acceptance Criteria:**
+
 - All directories exist
 - `exports/` is gitignored
 - `pnpm dev` shows the placeholder app
@@ -157,6 +182,7 @@ plotter/
 - [ ] Define `ExportOptions` interface: `width`, `height`, `units`, `strokeWidth`, `strokeColor`
 
 **Acceptance Criteria:**
+
 - All types compile without errors
 - Types are importable via `@/lib/types`
 
@@ -167,6 +193,7 @@ plotter/
 - [ ] Write unit tests: verify known dimensions (e.g., letter = 21.59 × 27.94 cm), verify landscape swaps width/height, verify unknown paper name throws or returns undefined
 
 **Acceptance Criteria:**
+
 - `PAPER_SIZES.letter` returns `{ width: 21.59, height: 27.94 }`
 - `getPaperSize('a4', 'landscape')` returns `{ width: 29.7, height: 21.0 }`
 - All paper size tests pass
@@ -177,6 +204,7 @@ plotter/
 - [ ] Write unit tests for each function with edge cases (e.g., `clamp` at boundaries, `lerp` at 0 and 1, `mod` with negative numbers, `dist` with known triangles, `lerpArray` with 2D and 3D vectors)
 
 **Acceptance Criteria:**
+
 - All math functions are pure, dependency-free, and exported
 - All math tests pass with correct floating-point handling (use `toBeCloseTo` where appropriate)
 
@@ -214,6 +242,7 @@ plotter/
   - `gaussian` mean and std approximate expected values over many samples
 
 **Acceptance Criteria:**
+
 - `createRandom(42)` produces deterministic, reproducible results
 - All random tests pass
 - No global state — two `createRandom` instances with different seeds do not interfere
@@ -239,6 +268,7 @@ plotter/
   - Segment count parameter controls point density
 
 **Acceptance Criteria:**
+
 - All geometry functions return `number[][]` polylines
 - Closed shapes have first point === last point
 - Default segment counts produce visually smooth curves (≥ 64 for circles)
@@ -261,6 +291,7 @@ plotter/
 - [ ] Write unit tests: context for letter portrait has correct dimensions, margin reduces effective width/height
 
 **Acceptance Criteria:**
+
 - `createSketchContext` returns a well-formed `SketchContext`
 - Dimensions are in cm and account for margins
 - `createRandom` on the context returns a working seeded random instance
@@ -281,6 +312,7 @@ plotter/
 - [ ] Write a component test: renders without crashing, canvas element exists in DOM
 
 **Acceptance Criteria:**
+
 - Passing an array of polylines renders visible lines on the canvas
 - Paper aspect ratio is preserved (no stretching)
 - Paper boundary and margin guides are visible
@@ -299,6 +331,7 @@ plotter/
 - [ ] Handle errors during import (invalid module, missing export)
 
 **Acceptance Criteria:**
+
 - Hook discovers all sketch directories under `sketches/`
 - `loadSketch` dynamically imports and returns a valid `SketchModule`
 - Loading state is tracked correctly
@@ -311,6 +344,7 @@ plotter/
 - [ ] Verify the sketch satisfies the `SketchModule` type (TypeScript compiles)
 
 **Acceptance Criteria:**
+
 - The sketch module exports a valid `SketchModule`
 - `render()` returns `number[][][]` with the expected number of polylines
 - Each polyline is a valid circle centered on the paper
@@ -326,6 +360,7 @@ plotter/
 - [ ] Verify in the browser: five concentric circles appear on a paper-shaped canvas
 
 **Acceptance Criteria:**
+
 - `pnpm dev` shows the concentric circles sketch rendering in the canvas
 - Circles are centered and properly scaled to the paper dimensions
 - No console errors
@@ -350,6 +385,7 @@ plotter/
 - [ ] Use Leva's transient `onChange` mode to avoid full React re-renders on every slider drag
 
 **Acceptance Criteria:**
+
 - Leva panel renders controls matching the sketch's `params` schema
 - Leva panel is embedded inside its container, not floating
 - Slider for `count` appears with correct min/max/step
@@ -368,6 +404,7 @@ plotter/
 - [ ] Add a "Randomize Seed" button that picks a random seed value and updates the control
 
 **Acceptance Criteria:**
+
 - Changing the `count` slider updates the number of circles in real time
 - Changing `maxRadius` visually changes circle sizes
 - Changing `paperSize` changes the canvas aspect ratio and circle positioning
@@ -381,6 +418,7 @@ plotter/
 - [ ] Document any HMR caveats or workarounds needed
 
 **Acceptance Criteria:**
+
 - Code changes to a sketch file update the preview within ~1 second
 - Parameter values persist across HMR (user doesn't lose their tweaks)
 
@@ -406,6 +444,7 @@ plotter/
 - [ ] Verify dark theme applies to all shadcn/ui components and the overall layout (configured in Phase 1.3)
 
 **Acceptance Criteria:**
+
 - Three-zone layout renders with correct proportions
 - Center viewport correctly contains the canvas with paper aspect ratio
 - Leva panel renders correctly within the right sidebar, not floating
@@ -425,6 +464,7 @@ plotter/
 - [ ] Show a loading indicator during sketch import
 
 **Acceptance Criteria:**
+
 - Sidebar lists all discovered sketches
 - Clicking a sketch loads it and updates the controls and preview
 - Active sketch is visually highlighted
@@ -437,6 +477,7 @@ plotter/
 - [ ] Purpose: verify sketch switching works with different param schemas
 
 **Acceptance Criteria:**
+
 - Two sketches appear in the selector
 - Switching between them loads different params and renders different output
 - No state bleed between sketches (switching back shows correct default params)
@@ -472,6 +513,7 @@ plotter/
   - Unit conversion: letter paper in inches = `width="8.5in"`
 
 **Acceptance Criteria:**
+
 - `polylinesToSVG` produces valid SVG with physically accurate dimensions
 - SVG imports into Inkscape at the correct physical size without manual scaling
 - All SVG tests pass
@@ -491,6 +533,7 @@ plotter/
   - Empty input returns empty output
 
 **Acceptance Criteria:**
+
 - Clipping correctly trims polylines to rectangular bounds
 - No artifacts at clip boundaries (points lie exactly on the boundary edge)
 - All clip tests pass
@@ -513,6 +556,7 @@ plotter/
 - [ ] Place the export panel in the right sidebar below Leva controls
 
 **Acceptance Criteria:**
+
 - Clicking "Export SVG" downloads an SVG file
 - The downloaded SVG has correct physical dimensions and viewBox
 - Changing stroke width/color/units affects the exported SVG
@@ -540,6 +584,7 @@ plotter/
 - [ ] Write integration tests: start a test server, verify CRUD operations round-trip correctly (or test the middleware handler functions in isolation)
 
 **Acceptance Criteria:**
+
 - Plugin registers without errors in Vite dev server
 - `GET /__api/presets/2026-03-15-concentric-circles` returns `[]` initially
 - `POST` a preset, then `GET` it back — round-trip matches
@@ -559,6 +604,7 @@ plotter/
 - [ ] Handle errors (network, 404, 500) gracefully
 
 **Acceptance Criteria:**
+
 - Hook correctly calls the Vite plugin API
 - `savePreset` followed by `loadPreset` round-trips parameter values
 - Preset list updates after save/delete
@@ -574,6 +620,7 @@ plotter/
 - [ ] Install any additional shadcn/ui components needed (e.g., `dialog`, `input`, `dropdown-menu`)
 
 **Acceptance Criteria:**
+
 - Saving a preset creates a JSON file on disk in the sketch's `presets/` directory
 - Loading a preset updates all Leva controls and re-renders the preview
 - Deleting a preset removes the file and updates the list
@@ -598,6 +645,7 @@ plotter/
 - [ ] Keep it simple but more interesting than concentric circles — e.g., a grid of randomly rotated lines
 
 **Acceptance Criteria:**
+
 - Template is a valid `SketchModule` that renders something visible
 - Template compiles without errors
 - Template demonstrates the key framework features (seeded random, geometry helpers, params)
@@ -615,6 +663,7 @@ plotter/
 - [ ] Handle edge cases: name with special characters, sketch already exists
 
 **Acceptance Criteria:**
+
 - `pnpm new-sketch -- --name "test sketch"` creates `sketches/2026-03-15-test-sketch/index.ts`
 - The created sketch is immediately discoverable by the app (appears in sketch selector on next load)
 - Running the command twice with the same name fails gracefully (doesn't overwrite)
@@ -634,6 +683,7 @@ plotter/
 - [ ] Add `"test:e2e"` script to `package.json`
 
 **Acceptance Criteria:**
+
 - `pnpm test:e2e` runs the Playwright test and it passes
 - The test exercises the full pipeline: load → interact → export
 - Test completes in under 30 seconds
@@ -684,16 +734,16 @@ Note: Phases 7.1 and 7.2 (SVG serialization and clipping) are pure library code 
 
 ## Key Design Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| Phase 1 includes Vitest setup | Tests are needed immediately in Phase 2; avoids a "set up testing later" debt |
-| Types are a separate phase (2) before random/geometry (3) | Every module depends on `types.ts`; establishing the type contract first prevents rework |
-| Canvas preview before Leva controls | Seeing something render is the highest-value early milestone; controls without a viewer aren't testable |
-| Leva in its own phase (5), not bundled with viewer (4) | Leva integration has its own complexity (transient updates, schema mapping); isolating it makes debugging easier |
-| App shell (6) after controls (5) | Sketch switching must re-initialize Leva — testing this requires controls to be working first |
-| SVG + clipping grouped (7) | Both operate on polyline output and are tested together; clipping is most meaningful in the context of export |
-| Presets late (8) | Requires the most infrastructure (Vite plugin, API routes, filesystem writes); the core workflow works without them |
-| CLI scaffold last-but-one (9) | Template design is informed by all prior phases; doing it last means the template reflects the final API |
-| E2E test last (9) | Exercises the full pipeline — meaningless until all phases are complete |
-| shadcn/ui initialized in Phase 1, used in Phase 6 | Config files and utils are needed early; actual components are added as needed per phase |
-| Second sketch in Phase 6 (not Phase 4) | Phase 4 only needs one sketch to prove the pipeline; the second sketch exists to test sketch *switching*, which is a Phase 6 concern |
+| Decision                                                  | Rationale                                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Phase 1 includes Vitest setup                             | Tests are needed immediately in Phase 2; avoids a "set up testing later" debt                                                        |
+| Types are a separate phase (2) before random/geometry (3) | Every module depends on `types.ts`; establishing the type contract first prevents rework                                             |
+| Canvas preview before Leva controls                       | Seeing something render is the highest-value early milestone; controls without a viewer aren't testable                              |
+| Leva in its own phase (5), not bundled with viewer (4)    | Leva integration has its own complexity (transient updates, schema mapping); isolating it makes debugging easier                     |
+| App shell (6) after controls (5)                          | Sketch switching must re-initialize Leva — testing this requires controls to be working first                                        |
+| SVG + clipping grouped (7)                                | Both operate on polyline output and are tested together; clipping is most meaningful in the context of export                        |
+| Presets late (8)                                          | Requires the most infrastructure (Vite plugin, API routes, filesystem writes); the core workflow works without them                  |
+| CLI scaffold last-but-one (9)                             | Template design is informed by all prior phases; doing it last means the template reflects the final API                             |
+| E2E test last (9)                                         | Exercises the full pipeline — meaningless until all phases are complete                                                              |
+| shadcn/ui initialized in Phase 1, used in Phase 6         | Config files and utils are needed early; actual components are added as needed per phase                                             |
+| Second sketch in Phase 6 (not Phase 4)                    | Phase 4 only needs one sketch to prove the pipeline; the second sketch exists to test sketch _switching_, which is a Phase 6 concern |

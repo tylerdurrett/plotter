@@ -46,9 +46,9 @@ Each sketch is an ES module at `sketches/<name>/index.ts` exporting a `SketchMod
 
 ```typescript
 interface SketchModule {
-  params: Record<string, LevaInputSchema>;
-  setup?(ctx: SketchContext): void;
-  render(ctx: SketchContext, params: Record<string, any>): number[][][];
+  params: Record<string, LevaInputSchema>
+  setup?(ctx: SketchContext): void
+  render(ctx: SketchContext, params: Record<string, any>): number[][][]
 }
 ```
 
@@ -61,15 +61,15 @@ Sketches are discovered via `import.meta.glob('./sketches/*/index.ts', { eager: 
 
 ### Utility Library (`src/lib/`)
 
-| Module | Purpose | Key Exports |
-|--------|---------|-------------|
-| `types.ts` | Type definitions | `SketchModule`, `SketchContext`, `Polyline`, `Point`, `PaperSize` |
-| `random.ts` | Seeded PRNG + coherent noise | `createRandom(seed)` → `{ value, range, rangeFloor, gaussian, boolean, pick, shuffle, onCircle, insideCircle, noise2D, noise3D }` |
-| `math.ts` | Math helpers | `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod`, `degToRad`, `radToDeg`, `smoothstep`, `dist`, `distSq`, `angleBetween` |
-| `geometry.ts` | Polyline primitives | `circle`, `arc`, `rect`, `line`, `polygon`, `ellipse`, `bezier`, `quadratic`, `cubic`, `spiral` — all return `number[][]` in cm |
-| `clip.ts` | Polyline clipping | `clipPolylinesToBox(lines, bounds)` — Cohen-Sutherland / Sutherland-Hodgman |
-| `svg.ts` | SVG serialization | `polylinesToSVG(lines, options)` — absolute units, correct viewBox, paper dimensions |
-| `paper.ts` | Paper size constants | `PAPER_SIZES` — letter, A4, A3, A5, etc. in cm, portrait and landscape |
+| Module        | Purpose                      | Key Exports                                                                                                                        |
+| ------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`    | Type definitions             | `SketchModule`, `SketchContext`, `Polyline`, `Point`, `PaperSize`                                                                  |
+| `random.ts`   | Seeded PRNG + coherent noise | `createRandom(seed)` → `{ value, range, rangeFloor, gaussian, boolean, pick, shuffle, onCircle, insideCircle, noise2D, noise3D }`  |
+| `math.ts`     | Math helpers                 | `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod`, `degToRad`, `radToDeg`, `smoothstep`, `dist`, `distSq`, `angleBetween` |
+| `geometry.ts` | Polyline primitives          | `circle`, `arc`, `rect`, `line`, `polygon`, `ellipse`, `bezier`, `quadratic`, `cubic`, `spiral` — all return `number[][]` in cm    |
+| `clip.ts`     | Polyline clipping            | `clipPolylinesToBox(lines, bounds)` — Cohen-Sutherland / Sutherland-Hodgman                                                        |
+| `svg.ts`      | SVG serialization            | `polylinesToSVG(lines, options)` — absolute units, correct viewBox, paper dimensions                                               |
+| `paper.ts`    | Paper size constants         | `PAPER_SIZES` — letter, A4, A3, A5, etc. in cm, portrait and landscape                                                             |
 
 ### Preset Persistence
 
@@ -122,6 +122,7 @@ A single proof-of-concept sketch ships with the initial build: **concentric circ
 ### Dependencies
 
 **Runtime:**
+
 - `react`, `react-dom` — UI framework
 - `leva` — Parameter control GUI
 - `simplex-noise` — Coherent noise generation
@@ -131,6 +132,7 @@ A single proof-of-concept sketch ships with the initial build: **concentric circ
 - `shadcn/ui` ecosystem (`tailwind-merge`, `clsx`, `class-variance-authority`, `lucide-react`) — UI component primitives
 
 **Dev:**
+
 - `vite` — Build tool, dev server, HMR
 - `@vitejs/plugin-react` — React Fast Refresh
 - `typescript` — Type safety

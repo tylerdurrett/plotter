@@ -22,6 +22,7 @@ A browser-based development environment for creating generative art intended for
 All sketch output is represented as arrays of polylines: `number[][][]` where the structure is `lines[line[point[x, y]]]`. This is the same convention used by canvas-sketch/penplot and the broader plotter art community.
 
 **Rationale:**
+
 - Pen plotters fundamentally execute sequences of "move to / draw to / pen up" commands. Every geometric form — circles, arcs, beziers, fills-as-hatching — ultimately reduces to polylines.
 - Pure numeric arrays are trivial to transform (affine math on raw numbers), clip (e.g., Sutherland-Hodgman on arrays), optimize (path sorting to minimize pen-up travel), and serialize to SVG.
 - This approach avoids coupling sketches to any particular rendering backend or DOM API. A sketch is a pure function that computes geometry; rendering and export are separate concerns handled by the framework.
@@ -40,6 +41,7 @@ SVG is generated only at export time by serializing polylines into `<polyline>` 
 The application is built with **Vite + React**. Next.js was considered but rejected for this project.
 
 **Rationale:**
+
 - Vite's HMR is measurably faster, which matters for the tight feedback loop of creative coding. Even 100–200ms of extra latency per code change is felt when iterating on parameters.
 - Dynamic imports of sketch modules from a `sketches/` directory are natural with Vite's `import.meta.glob`.
 - Next.js's server component / client component boundary adds cognitive overhead with zero benefit — every sketch component is inherently client-side.
@@ -51,6 +53,7 @@ The application is built with **Vite + React**. Next.js was considered but rejec
 The GUI control panel uses **[leva](https://github.com/pmndrs/leva)** from the Poimandres collective (~223k weekly npm downloads, actively maintained).
 
 **Rationale:**
+
 - Leva is React-first — its `useControls` hook is idiomatic React and integrates naturally into the component tree.
 - It supports 12+ input types out of the box (sliders, color pickers, vectors, selects, booleans, etc.) with smart type inference.
 - Transient updates (via `onChange` handlers) avoid React re-renders on every frame, which is important for performance-sensitive parameter tweaking.
@@ -66,7 +69,7 @@ Each sketch is a self-contained ES module in the `sketches/` directory. The fram
 ```typescript
 // sketches/my-sketch/index.ts
 
-import type { SketchModule, SketchContext } from '@studio/types';
+import type { SketchModule, SketchContext } from '@studio/types'
 
 const sketch: SketchModule = {
   // Parameter schema — drives leva controls
@@ -86,21 +89,22 @@ const sketch: SketchModule = {
   // Render — called on every parameter change
   // Returns an array of polylines: number[][][]
   render(ctx, params) {
-    const { width, height } = ctx;     // Paper dimensions in cm
-    const { seed, lineCount } = params; // Current parameter values
-    const random = ctx.createRandom(seed);
-    const lines: number[][][] = [];
+    const { width, height } = ctx // Paper dimensions in cm
+    const { seed, lineCount } = params // Current parameter values
+    const random = ctx.createRandom(seed)
+    const lines: number[][][] = []
 
     // ... generate geometry ...
 
-    return lines;
+    return lines
   },
-};
+}
 
-export default sketch;
+export default sketch
 ```
 
 **Key properties of this contract:**
+
 - `render` is a **pure function** of `(ctx, params) → polylines`. No side effects, no DOM access, no retained state between calls. This makes sketches easy to reason about, test, and reproduce.
 - `params` is a declarative schema that maps directly to leva control definitions. The framework reads this schema to generate the GUI.
 - `ctx` provides paper dimensions (in centimeters), a seeded random number generator factory, and potentially other framework services (noise functions, geometry helpers).
@@ -113,6 +117,7 @@ Deterministic, reproducible randomness is essential for generative art destined 
 The framework provides a seeded random utility built on `alea` (PRNG) and `simplex-noise` (coherent noise). The seed is a visible, editable parameter in every sketch's control panel. The `ctx.createRandom(seed)` factory returns an isolated random instance so that adding/removing random calls in one part of a sketch doesn't shift the sequence elsewhere.
 
 API surface of the random utility (modeled on `canvas-sketch-util/random`):
+
 - `value()` — uniform [0, 1)
 - `range(min, max)` — uniform in range
 - `rangeFloor(min, max)` — integer in range
@@ -216,12 +221,12 @@ Named paper sizes with dimensions in centimeters, both portrait and landscape.
 
 ```typescript
 export const PAPER_SIZES = {
-  letter:    { width: 21.59, height: 27.94 },
-  a4:        { width: 21.0,  height: 29.7  },
-  a3:        { width: 29.7,  height: 42.0  },
-  a5:        { width: 14.8,  height: 21.0  },
+  letter: { width: 21.59, height: 27.94 },
+  a4: { width: 21.0, height: 29.7 },
+  a3: { width: 29.7, height: 42.0 },
+  a5: { width: 14.8, height: 21.0 },
   // ... etc
-} as const;
+} as const
 ```
 
 ---
@@ -233,6 +238,7 @@ export const PAPER_SIZES = {
 Renders the current sketch's polyline output to an HTML `<canvas>` element.
 
 Responsibilities:
+
 - Maintain a canvas element sized to fit the viewport while preserving the paper's aspect ratio
 - Transform from paper coordinates (cm) to pixel coordinates, with appropriate scaling
 - Render polylines via `CanvasRenderingContext2D` path operations
@@ -241,6 +247,7 @@ Responsibilities:
 - Re-render when params change (driven by leva's `onChange` or React state)
 
 Performance considerations:
+
 - For sketches with many polylines, rendering should happen outside React's render cycle via `requestAnimationFrame` or an effect that draws directly to the canvas
 - The sketch's `render()` function may be computationally expensive — consider debouncing parameter changes or running `render()` in a Web Worker for heavy sketches (future optimization)
 
@@ -249,6 +256,7 @@ Performance considerations:
 Integrates leva to provide the parameter GUI.
 
 Responsibilities:
+
 - Read the active sketch's `params` schema and translate it into leva control definitions
 - Expose current parameter values to the sketch viewer
 - Provide preset management: save current params as a named JSON file, load presets, list available presets
@@ -261,6 +269,7 @@ Presets are stored as JSON files in each sketch's `presets/` subdirectory. The s
 Handles SVG export and related settings.
 
 Responsibilities:
+
 - Trigger SVG generation from the current polyline output using `svg.ts`
 - Configure export options: stroke width, stroke color, whether to optimize paths, units
 - Download the SVG file (named after the sketch + preset + timestamp)
@@ -272,6 +281,7 @@ Responsibilities:
 Lists available sketches and allows switching between them.
 
 Responsibilities:
+
 - Use `import.meta.glob` results to enumerate available sketches
 - Display sketch names (derived from directory names)
 - Handle dynamic import of the selected sketch module
@@ -283,31 +293,31 @@ Responsibilities:
 
 ### Runtime Dependencies
 
-| Package | Purpose | Weekly Downloads |
-|---------|---------|-----------------|
-| `react`, `react-dom` | UI framework | — |
-| `leva` | Parameter control GUI | ~223k |
-| `simplex-noise` | Coherent noise generation | — |
-| `alea` | Seedable PRNG | — |
-| `lineclip` | Fast polyline/polygon clipping | — |
+| Package              | Purpose                        | Weekly Downloads |
+| -------------------- | ------------------------------ | ---------------- |
+| `react`, `react-dom` | UI framework                   | —                |
+| `leva`               | Parameter control GUI          | ~223k            |
+| `simplex-noise`      | Coherent noise generation      | —                |
+| `alea`               | Seedable PRNG                  | —                |
+| `lineclip`           | Fast polyline/polygon clipping | —                |
 
 ### Dev Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `vite` | Build tool + dev server + HMR |
-| `@vitejs/plugin-react` | React Fast Refresh for Vite |
-| `typescript` | Type safety |
+| Package                | Purpose                       |
+| ---------------------- | ----------------------------- |
+| `vite`                 | Build tool + dev server + HMR |
+| `@vitejs/plugin-react` | React Fast Refresh for Vite   |
+| `typescript`           | Type safety                   |
 
 ### Intentionally Not Included
 
-| Package | Reason |
-|---------|--------|
-| `p5.js` | Global-mode API conflicts with React; SVG export is bolted-on; adds weight without proportional benefit for this use case |
-| `paper.js` | Heavyweight scene graph model is awkward to integrate with React; canvas-backed rendering is redundant. Could be added later as an optional geometry computation library for path booleans if needed |
+| Package         | Reason                                                                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `p5.js`         | Global-mode API conflicts with React; SVG export is bolted-on; adds weight without proportional benefit for this use case                                                                                                                  |
+| `paper.js`      | Heavyweight scene graph model is awkward to integrate with React; canvas-backed rendering is redundant. Could be added later as an optional geometry computation library for path booleans if needed                                       |
 | `canvas-sketch` | The CLI/dev-server tooling is built on budo/browserify (outdated). However, `canvas-sketch-util` is a valid standalone dependency for its `random`, `math`, and `geometry` modules — consider using it directly rather than reimplementing |
-| `gl-matrix` | Overkill for 2D work; simple inline math functions are sufficient. Reconsider if 3D projection features are added |
-| `tweakpane` | Strong library, but leva's React-native integration is a better fit since the app is already React |
+| `gl-matrix`     | Overkill for 2D work; simple inline math functions are sufficient. Reconsider if 3D projection features are added                                                                                                                          |
+| `tweakpane`     | Strong library, but leva's React-native integration is a better fit since the app is already React                                                                                                                                         |
 
 ---
 
