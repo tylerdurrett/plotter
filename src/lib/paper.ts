@@ -15,17 +15,20 @@ export const PAPER_SIZES: Record<string, PaperSize> = {
 
 /**
  * Get paper dimensions by name and orientation.
+ * Accepts a preset name (e.g. 'letter', 'a4') or a custom { width, height } object.
  * Swaps width/height for landscape orientation.
- * Throws if the paper name is not recognized.
+ * Throws if the paper name is not recognized or dimensions are invalid.
  */
 export function getPaperSize(
-  name: string,
+  paper: string | PaperSize,
   orientation: Orientation = 'portrait',
 ): PaperSize {
-  const size = PAPER_SIZES[name]
+  const size =
+    typeof paper === 'string' ? PAPER_SIZES[paper] : validatePaperSize(paper)
+
   if (!size) {
     throw new Error(
-      `Unknown paper size: "${name}". Available: ${Object.keys(PAPER_SIZES).join(', ')}`,
+      `Unknown paper size: "${paper}". Available: ${Object.keys(PAPER_SIZES).join(', ')}`,
     )
   }
 
@@ -34,4 +37,17 @@ export function getPaperSize(
   }
 
   return { ...size }
+}
+
+/**
+ * Validate that a custom paper size has positive dimensions.
+ * Returns the size if valid, throws otherwise.
+ */
+function validatePaperSize(size: PaperSize): PaperSize {
+  if (size.width <= 0 || size.height <= 0) {
+    throw new Error(
+      `Paper dimensions must be positive: got ${size.width} × ${size.height}`,
+    )
+  }
+  return size
 }

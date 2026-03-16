@@ -64,4 +64,28 @@ describe('getPaperSize', () => {
     expect(result).not.toBe(PAPER_SIZES.letter)
     expect(result).toEqual(PAPER_SIZES.letter)
   })
+
+  // Custom paper size support (Phase 2.2.5)
+  it('accepts a custom { width, height } object', () => {
+    expect(getPaperSize({ width: 15, height: 20 })).toEqual({ width: 15, height: 20 })
+  })
+
+  it('swaps custom dimensions for landscape', () => {
+    expect(getPaperSize({ width: 15, height: 20 }, 'landscape')).toEqual({
+      width: 20,
+      height: 15,
+    })
+  })
+
+  it('throws for custom size with zero width', () => {
+    expect(() => getPaperSize({ width: 0, height: 20 })).toThrow(
+      'Paper dimensions must be positive',
+    )
+  })
+
+  it('throws for custom size with negative height', () => {
+    expect(() => getPaperSize({ width: 15, height: -1 })).toThrow(
+      'Paper dimensions must be positive',
+    )
+  })
 })

@@ -213,6 +213,21 @@ plotter/
 - `getPaperSize('a4', 'landscape')` returns `{ width: 29.7, height: 21.0 }`
 - All paper size tests pass
 
+### 2.2.5 Custom Paper Size Support (`src/lib/paper.ts`)
+
+- [x] Extend `getPaperSize` to accept `string | PaperSize` — when a `{ width, height }` object is passed, validate and return it directly (with orientation swap if landscape)
+- [x] Add `validatePaperSize` helper that throws if dimensions are not positive
+- [x] Write unit tests: custom object passthrough, landscape swap on custom sizes, rejection of zero/negative dimensions
+  - **Note:** 4 new tests added (custom passthrough, custom landscape swap, zero width rejection, negative height rejection), bringing the paper test total to 17.
+
+**Acceptance Criteria:**
+
+- `getPaperSize({ width: 15, height: 20 })` returns `{ width: 15, height: 20 }`
+- `getPaperSize({ width: 15, height: 20 }, 'landscape')` returns `{ width: 20, height: 15 }`
+- Zero or negative dimensions throw
+- All existing preset paper size tests still pass
+- All paper size tests pass
+
 ### 2.3 Scalar Math Utilities (`src/lib/math.ts`)
 
 - [ ] Implement: `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod` (true modulo, not JS `%`), `degToRad`, `radToDeg`, `smoothstep`
