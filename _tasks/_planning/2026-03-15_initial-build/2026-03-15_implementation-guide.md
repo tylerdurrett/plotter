@@ -384,18 +384,24 @@ plotter/
 
 ### 4.2 SketchViewer Component (`src/components/SketchViewer.tsx`)
 
-- [ ] Create a React component that accepts `lines: number[][][]` and `paperSize: PaperSize` as props
-- [ ] Render an HTML `<canvas>` element that:
+- [x] Create a React component that accepts `lines: number[][][]` and `paperSize: PaperSize` as props
+  - **Note:** Also accepts optional `margin` (cm, for dashed guides) and `className` props. Uses `Polyline[]` type from `@/lib/types` for type safety.
+- [x] Render an HTML `<canvas>` element that:
   - Sizes itself to fill available space while preserving the paper's aspect ratio
   - **Handles `window.devicePixelRatio`** for crisp rendering on retina/HiDPI displays: set canvas `width`/`height` attributes to `containerSize * dpr`, CSS `width`/`height` to `containerSize`, and scale the 2D context by `dpr`
   - Transforms from paper coordinates (cm) to pixel coordinates (scale + translate)
   - Iterates over polylines and draws each with `beginPath()` / `moveTo()` / `lineTo()` / `stroke()`
   - Draws a paper boundary outline (light rectangle)
   - Draws margin guides (dashed inner rectangle) if margin is provided
-- [ ] Use `useRef` for the canvas and draw via `useEffect` or `useLayoutEffect` — not in the React render cycle
-- [ ] Handle window resize (re-measure container, redraw)
-- [ ] **Wrap the viewer in a React error boundary** (create `src/components/ErrorBoundary.tsx`) that catches `render()` errors and displays the error message inline instead of white-screening the entire app. This is critical for the edit-save-preview loop where sketch code frequently throws during development.
-- [ ] Write a component test: renders without crashing, canvas element exists in DOM
+  - **Note:** `computeLayout()` helper handles aspect-ratio fitting with 16px container padding. Paper rendered as white rectangle on dark background. Lines drawn black with round caps/joins. Polylines with < 2 points are skipped.
+- [x] Use `useRef` for the canvas and draw via `useEffect` or `useLayoutEffect` — not in the React render cycle
+  - **Note:** Uses `useEffect` (not `useLayoutEffect`) since canvas pixel drawing doesn't affect DOM layout. Dependencies: `[lines, paperSize, margin, containerSize]`.
+- [x] Handle window resize (re-measure container, redraw)
+  - **Note:** Uses `ResizeObserver` on the container div (handles all resize cases including parent layout changes, not just window resize). Cleanup via `observer.disconnect()`.
+- [x] **Wrap the viewer in a React error boundary** (create `src/components/ErrorBoundary.tsx`) that catches `render()` errors and displays the error message inline instead of white-screening the entire app. This is critical for the edit-save-preview loop where sketch code frequently throws during development.
+  - **Note:** Class component with `getDerivedStateFromError`. Displays error name/message inline with `role="alert"`, uses existing `Button` component for retry. Retry resets error state to re-render children.
+- [x] Write a component test: renders without crashing, canvas element exists in DOM
+  - **Note:** 9 tests total: 4 ErrorBoundary tests (renders children, catches errors, shows retry, retry resets state) and 5 SketchViewer tests (empty lines, canvas in DOM, valid polylines, margin prop, className prop). ResizeObserver stubbed for jsdom. Installed `@testing-library/user-event` for retry button interaction test. Total project test count: 220 passing.
 
 **Acceptance Criteria:**
 
