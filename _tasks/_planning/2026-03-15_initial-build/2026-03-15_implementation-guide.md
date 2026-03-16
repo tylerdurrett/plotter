@@ -368,11 +368,13 @@ plotter/
 
 ### 4.1 Sketch Context Factory
 
-- [ ] Create a `createSketchContext(paperSize, orientation, margin)` function (can live in `src/lib/types.ts` or a new `src/lib/context.ts`) that builds a `SketchContext` object:
+- [x] Create a `createSketchContext(paperSize, orientation, margin)` function (can live in `src/lib/types.ts` or a new `src/lib/context.ts`) that builds a `SketchContext` object:
   - `width` and `height` from paper size (minus margins if applicable)
   - `createRandom(seed)` from `random.ts`
   - Paper metadata (name, full dimensions, margin)
-- [ ] Write unit tests: context for letter portrait has correct dimensions, margin reduces effective width/height
+  - **Note:** Created in `src/lib/context.ts` (keeping `types.ts` purely type definitions). Accepts `string | PaperSize` for paper, optional orientation, and margin (default 0). Validates margin is non-negative and doesn't exceed paper dimensions. Uses `"custom"` as paper name for PaperSize objects. Re-exports `createRandom` from `random.ts` directly.
+- [x] Write unit tests: context for letter portrait has correct dimensions, margin reduces effective width/height
+  - **Note:** 12 tests covering: letter portrait/a4 landscape dimensions, margin reduction, default margin, paper metadata, custom PaperSize naming, landscape dimension swap, createRandom determinism, unknown paper error, negative margin error, oversized margin error, and custom PaperSize with margin. Total project test count: 211 passing.
 
 **Acceptance Criteria:**
 
