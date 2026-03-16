@@ -1,17 +1,8 @@
 import { render, screen } from '@testing-library/react'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { SketchViewer } from '@/components/SketchViewer'
 import type { PaperSize, Polyline } from '@/lib/types'
-
-// jsdom does not provide ResizeObserver — stub it so the component mounts
-beforeAll(() => {
-  globalThis.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-})
 
 const letterSize: PaperSize = { width: 21.59, height: 27.94 }
 

@@ -547,16 +547,25 @@ plotter/
 
 ### 6.1 Three-Zone Layout
 
-- [ ] Install shadcn/ui components needed for layout: `scroll-area`, `separator`, `button` (if not already installed)
-- [ ] Build the app shell layout in `app.tsx`:
+- [x] Install shadcn/ui components needed for layout: `scroll-area`, `separator`, `button` (if not already installed)
+  - **Note:** Installed `scroll-area` and `separator` via `pnpm dlx shadcn@latest add scroll-area separator`. Both use `@base-ui/react` primitives (consistent with the existing button component). `button` was already installed in Phase 1.3.
+- [x] Build the app shell layout in `app.tsx`:
   - **Left sidebar** (~240px): sketch selector area (top), preset controls area (bottom, placeholder for Phase 8)
   - **Center viewport** (flex-grow): `SketchViewer` filling available space
   - **Right panel** (~300px): `ControlPanel` (Leva) at top, export controls area (bottom, placeholder for Phase 7)
-- [ ] Use Tailwind for the grid/flex layout
-- [ ] Ensure the layout is responsive to window resize (center viewport scales, sidebars are fixed-width)
-- [ ] Ensure Leva's `<LevaPanel>` (from Phase 5.1) is properly positioned within the right panel container using `fill` mode
-- [ ] Ensure Leva's panel styling is not broken by Tailwind's CSS reset — add scoping CSS in `index.css` if needed
-- [ ] Verify dark theme applies to all shadcn/ui components and the overall layout (configured in Phase 1.3)
+  - **Note:** Left sidebar is `w-60` (240px) with `shrink-0`, always visible. Center is `flex-1 min-w-0` (min-w-0 prevents flex overflow). Right panel is `w-75` (300px) with `shrink-0`, conditional on `activeSketch`. Used semantic `<aside>` and `<main>` elements. Left sidebar uses `ScrollArea` for the sketch list area; right panel keeps `overflow-y-auto` for ControlPanel. `Separator` divides top/bottom sections in both sidebars. Placeholder sections with "Coming soon" text for Presets (Phase 8) and Export (Phase 7). Added `data-testid="sidebar-left"` and `data-testid="sidebar-right"` for robust test selectors.
+- [x] Use Tailwind for the grid/flex layout
+  - **Note:** Used flexbox (not grid) — matches existing codebase convention and is simpler for this fixed-sidebar + flex-grow pattern.
+- [x] Ensure the layout is responsive to window resize (center viewport scales, sidebars are fixed-width)
+  - **Note:** `SketchViewer` uses `ResizeObserver` internally, so it naturally adapts to the new center column width on resize. Sidebars use `shrink-0` to maintain fixed width.
+- [x] Ensure Leva's `<LevaPanel>` (from Phase 5.1) is properly positioned within the right panel container using `fill` mode
+  - **Note:** No changes needed to `ControlPanel.tsx`. Leva's `fill` mode uses `position: relative; width: 100%`, which flows naturally within the right panel's `overflow-y-auto` container.
+- [x] Ensure Leva's panel styling is not broken by Tailwind's CSS reset — add scoping CSS in `index.css` if needed
+  - **Note:** No CSS overrides needed. Leva's CSS-in-JS (stitches) generates styles with higher specificity than Tailwind's preflight. Verified via screenshot — all Leva controls render correctly.
+- [x] Verify dark theme applies to all shadcn/ui components and the overall layout (configured in Phase 1.3)
+  - **Note:** Verified via screenshot. `bg-card`, `text-foreground`, `text-muted-foreground`, `border-border` all resolve correctly through dark theme CSS variables. `ScrollArea` and `Separator` components inherit the theme automatically.
+
+**Note:** 10 new `AppLayout` tests added covering: three-zone structure, section headings, active sketch name display, ControlPanel/Export/Presets placement, Randomize Seed button, canvas presence, right panel conditional rendering, and left sidebar always-visible behavior. Also consolidated the `ResizeObserver` jsdom stub from individual test files into the shared `test-setup.ts`. Total project test count: 249 passing.
 
 **Acceptance Criteria:**
 
