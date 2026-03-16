@@ -201,9 +201,11 @@ plotter/
 
 ### 2.2 Paper Size Constants (`src/lib/paper.ts`)
 
-- [ ] Define `PAPER_SIZES` record with `letter`, `a4`, `a3`, `a5`, `a2`, `tabloid` — all in cm, portrait orientation
-- [ ] Export a helper function `getPaperSize(name, orientation)` that returns dimensions, swapping width/height for landscape
-- [ ] Write unit tests: verify known dimensions (e.g., letter = 21.59 × 27.94 cm), verify landscape swaps width/height, verify unknown paper name throws or returns undefined
+- [x] Define `PAPER_SIZES` record with `letter`, `a4`, `a3`, `a5`, `a2`, `tabloid` — all in cm, portrait orientation
+- [x] Export a helper function `getPaperSize(name, orientation)` that returns dimensions, swapping width/height for landscape
+  - **Note:** Also exports `Orientation` type. Returns a defensive copy (`{ ...size }`) to prevent mutation of the source record. Throws with a helpful error listing available sizes for unknown names.
+- [x] Write unit tests: verify known dimensions (e.g., letter = 21.59 × 27.94 cm), verify landscape swaps width/height, verify unknown paper name throws or returns undefined
+  - **Note:** 14 tests total: 7 for `PAPER_SIZES` constants (including a portrait invariant check across all sizes) and 7 for `getPaperSize` (portrait default, explicit portrait, landscape swap for a4 and letter, unknown name error, and reference identity check).
 
 **Acceptance Criteria:**
 
