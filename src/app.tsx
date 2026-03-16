@@ -5,6 +5,7 @@ import {
   type ControlPanelHandle,
 } from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { PanelLayout } from '@/components/PanelLayout'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -162,88 +163,93 @@ function App() {
     )
   }
 
-  return (
-    <div className="flex h-screen text-foreground">
-      {/* Left sidebar: sketch selector + presets */}
-      <aside
-        data-testid="sidebar-left"
-        className="flex w-60 shrink-0 flex-col border-r border-border bg-card"
-      >
-        <div className="p-3">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Sketches
-          </h2>
+  const leftSidebar = (
+    <aside
+      data-testid="sidebar-left"
+      className="flex h-full flex-col border-r border-border bg-card"
+    >
+      <div className="p-3">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Sketches
+        </h2>
+      </div>
+      <ScrollArea className="flex-1">
+        {/* Phase 6.2: SketchSelector component replaces this placeholder */}
+        <div className="px-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            {activeSketchName ?? 'No sketch loaded'}
+          </p>
         </div>
-        <ScrollArea className="flex-1">
-          {/* Phase 6.2: SketchSelector component replaces this placeholder */}
-          <div className="px-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              {activeSketchName ?? 'No sketch loaded'}
-            </p>
-          </div>
-        </ScrollArea>
-        <Separator />
-        <div className="p-3">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Presets
-          </h2>
-          {/* Phase 8: Preset controls replace this placeholder */}
-          <p className="mt-2 text-xs text-muted-foreground">Coming soon</p>
+      </ScrollArea>
+      <Separator />
+      <div className="p-3">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Presets
+        </h2>
+        {/* Phase 8: Preset controls replace this placeholder */}
+        <p className="mt-2 text-xs text-muted-foreground">Coming soon</p>
+      </div>
+    </aside>
+  )
+
+  const centerViewport = (
+    <ErrorBoundary>
+      {renderError ? (
+        <div className="flex h-full items-center justify-center bg-background">
+          <p className="text-sm text-destructive">{renderError}</p>
         </div>
-      </aside>
-
-      {/* Center viewport */}
-      <main className="min-w-0 flex-1">
-        <ErrorBoundary>
-          {renderError ? (
-            <div className="flex h-full items-center justify-center bg-background">
-              <p className="text-sm text-destructive">{renderError}</p>
-            </div>
-          ) : (
-            <SketchViewer
-              lines={lines}
-              paperSize={paperSize}
-              margin={margin}
-              className="h-full"
-            />
-          )}
-        </ErrorBoundary>
-      </main>
-
-      {/* Right panel: controls + export */}
-      {activeSketch && (
-        <aside
-          data-testid="sidebar-right"
-          className="flex w-75 shrink-0 flex-col border-l border-border bg-card"
-        >
-          <div className="border-b border-border p-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              onClick={handleRandomizeSeed}
-            >
-              Randomize Seed
-            </Button>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            <ControlPanel
-              ref={controlPanelRef}
-              key={activeSketchName}
-              params={activeSketch.params}
-              onChange={scheduleRender}
-            />
-          </div>
-          <Separator />
-          <div className="p-3">
-            <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Export
-            </h2>
-            {/* Phase 7: ExportPanel component replaces this placeholder */}
-            <p className="mt-2 text-xs text-muted-foreground">Coming soon</p>
-          </div>
-        </aside>
+      ) : (
+        <SketchViewer
+          lines={lines}
+          paperSize={paperSize}
+          margin={margin}
+          className="h-full"
+        />
       )}
+    </ErrorBoundary>
+  )
+
+  const rightPanel = activeSketch ? (
+    <aside
+      data-testid="sidebar-right"
+      className="flex h-full flex-col border-l border-border bg-card"
+    >
+      <div className="border-b border-border p-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          onClick={handleRandomizeSeed}
+        >
+          Randomize Seed
+        </Button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <ControlPanel
+          ref={controlPanelRef}
+          key={activeSketchName}
+          params={activeSketch.params}
+          onChange={scheduleRender}
+        />
+      </div>
+      <Separator />
+      <div className="p-3">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Export
+        </h2>
+        {/* Phase 7: ExportPanel component replaces this placeholder */}
+        <p className="mt-2 text-xs text-muted-foreground">Coming soon</p>
+      </div>
+    </aside>
+  ) : null
+
+  return (
+    <div className="h-screen text-foreground">
+      <PanelLayout
+        leftContent={leftSidebar}
+        centerContent={centerViewport}
+        rightContent={rightPanel}
+      />
     </div>
   )
 }

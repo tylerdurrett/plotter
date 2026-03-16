@@ -575,6 +575,33 @@ plotter/
 - Layout handles window resize gracefully
 - App uses dark theme throughout
 
+### 6.1b Resizable & Collapsible Sidebars
+
+- [x] Install `react-resizable-panels` (`pnpm add react-resizable-panels`)
+  - **Note:** Installed v4.7.3. The v4 API differs significantly from v2: `PanelGroup` → `Group`, `PanelResizeHandle` → `Separator`, `autoSaveId` → `useDefaultLayout` hook, `ref` → `panelRef` for imperative handles.
+- [x] Create `src/hooks/useIsMobile.ts` — `matchMedia` listener at 768px breakpoint
+  - **Note:** Pattern from repo-hub reference. Added `matchMedia` stub to `test-setup.ts` for jsdom compatibility.
+- [x] Create `src/components/ResizeHandle.tsx` — styled wrapper around `Separator` with opacity transitions for hover/drag feedback
+- [x] Create `src/components/PanelLayout.tsx` — core layout component (~160 lines):
+  - Desktop: `Group` with three `Panel`s (left 15%, center 55%, right 30%), both sidebars collapsible to 0%
+  - Mobile (`useIsMobile`): header bar with hamburger/sliders icons, `@base-ui/react` Drawer overlays for sidebars
+  - `useDefaultLayout` hook for localStorage persistence of panel sizes
+  - Keyboard shortcuts: `Cmd+[` / `Cmd+]` toggle left/right sidebars
+  - Show expand buttons in center panel when sidebars are collapsed
+- [x] Update `src/app.tsx` — replaced flexbox layout with `PanelLayout`. Extracted sidebar and center JSX into variables passed as props. All state management unchanged.
+  - **Note:** Right panel content is conditionally rendered inside the Panel (Panel wrapper always in DOM for stable layout persistence). Used `<main>` for center panel for semantic HTML.
+- [x] Tests: 7 new tests across 2 files (PanelLayout desktop/mobile rendering, useIsMobile hook). All 256 tests passing.
+
+**Acceptance Criteria:**
+
+- Both sidebars are independently resizable via drag handles
+- Both sidebars can be collapsed (to zero width) and re-expanded
+- Panel sizes persist across page reloads (localStorage)
+- On mobile (<768px), sidebars render as drawer overlays with hamburger/sliders trigger buttons
+- Cmd+[ and Cmd+] keyboard shortcuts toggle sidebars
+- SketchViewer canvas redraws correctly as center panel resizes
+- Leva controls render properly in resizable right panel
+
 ### 6.2 Sketch Selector (`src/components/SketchSelector.tsx`)
 
 - [ ] Create a component that displays the list of available sketches from `useSketchLoader`
