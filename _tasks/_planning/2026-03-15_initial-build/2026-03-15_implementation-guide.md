@@ -776,14 +776,19 @@ plotter/
 
 ### 8.2 Preset Hook (`src/hooks/usePresets.ts`)
 
-- [ ] Create `usePresets(sketchName)` hook that provides:
+- [x] Create `usePresets(sketchName)` hook that provides:
   - `presets: string[]` — list of available preset names
   - `loadPreset(name): Promise<Record<string, any>>` — fetch preset params
   - `savePreset(name, params): Promise<void>` — save current params
   - `deletePreset(name): Promise<void>` — delete a preset
   - `refreshPresets(): Promise<void>` — re-fetch the list
-- [ ] Use `fetch` to call the Vite plugin API endpoints
-- [ ] Handle errors (network, 404, 500) gracefully
+  - **Note:** Hook auto-fetches the preset list when `sketchName` changes. Uses `fetchIdRef` stale-load guard (same pattern as `useSketchLoader`). Clears presets to `[]` when `sketchName` is null. `savePreset` and `deletePreset` auto-refresh the list after success.
+- [x] Use `fetch` to call the Vite plugin API endpoints
+  - **Note:** Local `presetUrl()` helper builds API URLs with `encodeURIComponent` for safe sketch/preset names. `parseError()` extracts `{ error }` from API error responses with fallback for non-JSON failures.
+- [x] Handle errors (network, 404, 500) gracefully
+  - **Note:** All operations set `error` state on failure and throw (callers can catch). Network errors, 404s, and 400s are all surfaced via `parseError`. `loading` state tracks only list-fetching (not individual mutations). Shallow equality check on preset list prevents no-op re-renders when list hasn't changed.
+
+**Note:** 17 tests across 6 describe blocks: initial state (2), sketch switching (2), loadPreset (3), savePreset (3), deletePreset (3), refreshPresets (2), error handling (2). Covers: auto-fetch on mount, sketch change refetch, null sketch clearing, round-trip CRUD, 404/400 error propagation, network errors, error clearing on success. Total project test count: 368 passing.
 
 **Acceptance Criteria:**
 
