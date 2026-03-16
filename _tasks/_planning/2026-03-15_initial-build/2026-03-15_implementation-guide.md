@@ -23,7 +23,6 @@ plotter/
 ├── tsconfig.json
 ├── tsconfig.app.json
 ├── tsconfig.node.json
-├── tailwind.config.ts
 ├── components.json                 # shadcn/ui config
 ├── index.html
 ├── scripts/
@@ -34,6 +33,7 @@ plotter/
 │   ├── index.css                    # Tailwind directives + Leva overrides
 │   ├── components/
 │   │   ├── ui/                      # shadcn/ui primitives (auto-generated)
+│   │   ├── ErrorBoundary.tsx        # Catches sketch render errors
 │   │   ├── SketchViewer.tsx         # Canvas preview renderer
 │   │   ├── ControlPanel.tsx         # Leva integration
 │   │   ├── ExportPanel.tsx          # SVG export controls
@@ -42,6 +42,7 @@ plotter/
 │   │   ├── types.ts                 # SketchModule, SketchContext, etc.
 │   │   ├── paper.ts                 # Paper size constants (cm)
 │   │   ├── math.ts                  # lerp, clamp, mapRange, etc.
+│   │   ├── alea.d.ts                # Type declaration for `alea` package
 │   │   ├── random.ts                # Seeded PRNG + simplex noise
 │   │   ├── geometry.ts              # Polyline primitives
 │   │   ├── clip.ts                  # Polyline clipping
@@ -92,25 +93,30 @@ plotter/
 - [ ] Import `index.css` in `main.tsx`
 - [ ] Verify a Tailwind utility class (e.g., `bg-red-500`) renders correctly
 
+**Note:** Tailwind v4 uses CSS-first configuration via `@theme` directives — there is no `tailwind.config.ts` file. All theme customization goes in `src/index.css`.
+
 **Acceptance Criteria:**
 - Tailwind utility classes apply correctly in rendered output
 - No CSS build errors
+- No `tailwind.config.ts` file (Tailwind v4 CSS-first config)
 
 ### 1.3 Initialize shadcn/ui
 
-- [ ] Run `pnpm dlx shadcn@latest init` to generate `components.json` and `src/lib/utils.ts` (the `cn()` helper)
+- [ ] Run `pnpm dlx shadcn@latest init` to generate `components.json` and `src/lib/utils.ts` (the `cn()` helper). Use the Vite-specific variant if prompted (shadcn supports Tailwind v4 natively).
+- [ ] Configure **dark theme as default**: set `class="dark"` on `<html>` in `index.html`, and ensure shadcn's CSS variables include dark mode colors. The project convention is **dark-theme-first** (see AGENTS.md).
 - [ ] Install one test component (e.g., Button) to verify the pipeline: `pnpm dlx shadcn@latest add button`
-- [ ] Render the Button component in `app.tsx` to confirm it works
+- [ ] Render the Button component in `app.tsx` to confirm it works in dark mode
 - [ ] Remove the test Button usage from `app.tsx` (keep the component file for later use)
 
 **Acceptance Criteria:**
 - `components.json` exists with correct paths
 - `src/components/ui/button.tsx` exists and exports a working Button component
 - `cn()` utility is available at `@/lib/utils`
+- App renders with dark theme by default
 
 ### 1.4 Configure Vitest
 
-- [ ] Install `vitest` and `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`
+- [ ] Install `vitest` and `@testing-library/react@^16.1.0` (v16.1.0+ required for React 19), `@testing-library/jest-dom`, `jsdom`
 - [ ] Add Vitest config (inline in `vite.config.ts` or separate `vitest.config.ts`)
 - [ ] Create a trivial test file (`src/lib/__tests__/setup.test.ts`) that asserts `1 + 1 === 2`
 - [ ] Add `"test"` script to `package.json`
@@ -164,8 +170,8 @@ plotter/
 
 ### 2.3 Math Utilities (`src/lib/math.ts`)
 
-- [ ] Implement: `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod` (true modulo, not JS `%`), `degToRad`, `radToDeg`, `smoothstep`, `dist`, `distSq`, `angleBetween`
-- [ ] Write unit tests for each function with edge cases (e.g., `clamp` at boundaries, `lerp` at 0 and 1, `mod` with negative numbers, `dist` with known triangles)
+- [ ] Implement: `lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod` (true modulo, not JS `%`), `degToRad`, `radToDeg`, `smoothstep`, `dist`, `distSq`, `angleBetween`, `lerpArray` (component-wise vector interpolation)
+- [ ] Write unit tests for each function with edge cases (e.g., `clamp` at boundaries, `lerp` at 0 and 1, `mod` with negative numbers, `dist` with known triangles, `lerpArray` with 2D and 3D vectors)
 
 **Acceptance Criteria:**
 - All math functions are pure, dependency-free, and exported
@@ -182,6 +188,7 @@ plotter/
 ### 3.1 Seeded Random (`src/lib/random.ts`)
 
 - [ ] Install `alea` and `simplex-noise` packages
+- [ ] Create `src/lib/alea.d.ts` type declaration — `alea` ships no TypeScript types and `@types/alea` does not exist. Declare the module with `declare module 'alea' { ... }` exporting the PRNG factory function.
 - [ ] Implement `createRandom(seed)` factory returning an object with:
   - `value()` — uniform [0, 1)
   - `range(min, max)` — uniform float in range
@@ -260,12 +267,14 @@ plotter/
 - [ ] Create a React component that accepts `lines: number[][][]` and `paperSize: PaperSize` as props
 - [ ] Render an HTML `<canvas>` element that:
   - Sizes itself to fill available space while preserving the paper's aspect ratio
+  - **Handles `window.devicePixelRatio`** for crisp rendering on retina/HiDPI displays: set canvas `width`/`height` attributes to `containerSize * dpr`, CSS `width`/`height` to `containerSize`, and scale the 2D context by `dpr`
   - Transforms from paper coordinates (cm) to pixel coordinates (scale + translate)
   - Iterates over polylines and draws each with `beginPath()` / `moveTo()` / `lineTo()` / `stroke()`
   - Draws a paper boundary outline (light rectangle)
   - Draws margin guides (dashed inner rectangle) if margin is provided
 - [ ] Use `useRef` for the canvas and draw via `useEffect` or `useLayoutEffect` — not in the React render cycle
 - [ ] Handle window resize (re-measure container, redraw)
+- [ ] **Wrap the viewer in a React error boundary** (create `src/components/ErrorBoundary.tsx`) that catches `render()` errors and displays the error message inline instead of white-screening the entire app. This is critical for the edit-save-preview loop where sketch code frequently throws during development.
 - [ ] Write a component test: renders without crashing, canvas element exists in DOM
 
 **Acceptance Criteria:**
@@ -273,10 +282,12 @@ plotter/
 - Paper aspect ratio is preserved (no stretching)
 - Paper boundary and margin guides are visible
 - Resizing the window re-scales the canvas appropriately
+- Canvas renders crisply on retina/HiDPI displays (not blurry)
+- A sketch `render()` that throws shows the error in the viewer area, not a white screen
 
 ### 4.3 Sketch Dynamic Loading (`src/hooks/useSketchLoader.ts`)
 
-- [ ] Use `import.meta.glob('../sketches/*/index.ts', { eager: false })` to discover sketch modules
+- [ ] Use `import.meta.glob('../../sketches/*/index.ts', { eager: false })` to discover sketch modules (two levels up from `src/hooks/` to reach the project root `sketches/` directory)
 - [ ] Create a `useSketchLoader()` hook that returns:
   - `sketchList: string[]` — available sketch names (derived from directory names)
   - `activeSketch: SketchModule | null` — the currently loaded sketch
@@ -305,15 +316,17 @@ plotter/
 
 - [ ] Update `app.tsx` to:
   - Use `useSketchLoader` to load the concentric circles sketch on mount
+  - **Call the sketch's `setup(ctx)` if defined** — once after initial load (not on every param change)
   - Build a `SketchContext` from the sketch's paper size params
   - Call the sketch's `render(ctx, defaultParams)` to get polylines
-  - Pass polylines to `SketchViewer`
+  - Pass polylines to `SketchViewer`, **wrapped in `ErrorBoundary`** from Phase 4.2
 - [ ] Verify in the browser: five concentric circles appear on a paper-shaped canvas
 
 **Acceptance Criteria:**
 - `pnpm dev` shows the concentric circles sketch rendering in the canvas
 - Circles are centered and properly scaled to the paper dimensions
 - No console errors
+- Error boundary catches and displays errors from broken sketch code
 
 ---
 
@@ -328,12 +341,14 @@ plotter/
 - [ ] Install `leva` package
 - [ ] Create `ControlPanel` component that accepts a sketch's `params` schema and renders Leva controls
 - [ ] Use Leva's `useControls` hook with the sketch's param definitions
+- [ ] **Use `<LevaPanel>` with `fill` mode** to embed the panel inside the right sidebar container — Leva's default is a floating panel (top-right corner), which won't work with the three-zone layout. Import `LevaPanel` from `leva` and render it inside a container div rather than relying on the auto-positioned default.
 - [ ] Support core Leva input types: number (slider), boolean, select/options, color
 - [ ] Expose current parameter values via a callback prop or return value
 - [ ] Use Leva's transient `onChange` mode to avoid full React re-renders on every slider drag
 
 **Acceptance Criteria:**
 - Leva panel renders controls matching the sketch's `params` schema
+- Leva panel is embedded inside its container, not floating
 - Slider for `count` appears with correct min/max/step
 - Select for `paperSize` shows available options
 - Parameter values are accessible to the parent component
@@ -343,9 +358,10 @@ plotter/
 - [ ] Update `app.tsx` to:
   - Pass the active sketch's `params` to `ControlPanel`
   - On parameter change, re-run the sketch's `render(ctx, newParams)` to get new polylines
+  - **Throttle the render loop with `requestAnimationFrame`** — coalesce rapid parameter changes (e.g., dragging a slider) so `render()` runs at most once per frame. Without this, expensive sketches will stutter during slider drags.
   - Pass updated polylines to `SketchViewer`
   - Rebuild `SketchContext` when paper size or margin changes
-- [ ] Ensure the canvas redraws on every parameter change
+- [ ] Ensure the canvas redraws on every parameter change (within the rAF throttle)
 - [ ] Add a "Randomize Seed" button that picks a random seed value and updates the control
 
 **Acceptance Criteria:**
@@ -382,13 +398,16 @@ plotter/
   - **Right panel** (~300px): `ControlPanel` (Leva) at top, export controls area (bottom, placeholder for Phase 7)
 - [ ] Use Tailwind for the grid/flex layout
 - [ ] Ensure the layout is responsive to window resize (center viewport scales, sidebars are fixed-width)
-- [ ] Ensure Leva's panel styling is not broken by Tailwind's CSS reset — add scoping CSS if needed
+- [ ] Ensure Leva's `<LevaPanel>` (from Phase 5.1) is properly positioned within the right panel container using `fill` mode
+- [ ] Ensure Leva's panel styling is not broken by Tailwind's CSS reset — add scoping CSS in `index.css` if needed
+- [ ] Verify dark theme applies to all shadcn/ui components and the overall layout (configured in Phase 1.3)
 
 **Acceptance Criteria:**
 - Three-zone layout renders with correct proportions
 - Center viewport correctly contains the canvas with paper aspect ratio
-- Leva panel renders correctly without style conflicts
+- Leva panel renders correctly within the right sidebar, not floating
 - Layout handles window resize gracefully
+- App uses dark theme throughout
 
 ### 6.2 Sketch Selector (`src/components/SketchSelector.tsx`)
 
@@ -396,6 +415,7 @@ plotter/
 - [ ] Each sketch is a clickable list item showing the sketch name (derived from directory name, e.g., "concentric-circles")
 - [ ] Clicking a sketch triggers `loadSketch(name)`, which:
   - Dynamically imports the new sketch module
+  - **Calls the new sketch's `setup(ctx)` if defined** (one-time initialization)
   - Resets the `ControlPanel` with the new sketch's params
   - Runs the new sketch's `render()` and updates the viewer
 - [ ] Highlight the currently active sketch in the list
@@ -455,7 +475,7 @@ plotter/
 
 ### 7.2 Polyline Clipping (`src/lib/clip.ts`)
 
-- [ ] Install `lineclip` package (or implement Cohen-Sutherland for polylines)
+- [ ] Install `lineclip` package and `@types/lineclip` (dev dependency for TypeScript types)
 - [ ] Implement `clipPolylinesToBox(lines, [minX, minY, maxX, maxY])`:
   - Takes an array of polylines and a rectangular bounding box
   - Returns a new array of polylines clipped to the box
@@ -479,11 +499,13 @@ plotter/
   - Stroke color (color input, default black)
   - Output units (select: cm, in, mm)
   - "Export SVG" button
+  - "Copy SVG" button (copies SVG markup to clipboard via `navigator.clipboard.writeText`)
 - [ ] On export:
   - Clip polylines to paper bounds (with margin) using `clip.ts`
   - Serialize to SVG using `svg.ts` with current export settings
   - Trigger browser download of the SVG file
   - Filename format: `{sketch-name}_{timestamp}.svg`
+- [ ] On copy: same clip + serialize pipeline, then write to clipboard instead of downloading
 - [ ] Optionally show path statistics: total polyline count, total point count
 - [ ] Place the export panel in the right sidebar below Leva controls
 
