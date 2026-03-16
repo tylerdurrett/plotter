@@ -243,7 +243,7 @@ plotter/
 
 ### 2.4 Vector Utilities (`src/lib/vec.ts`)
 
-- [ ] Implement dimension-generic functions (work on both `Vec2` and `Vec3` via `number[]` iteration internally):
+- [x] Implement dimension-generic functions (work on both `Vec2` and `Vec3` via `number[]` iteration internally):
   - `vec.add(a, b)` — component-wise addition
   - `vec.sub(a, b)` — component-wise subtraction
   - `vec.scale(a, s)` — scalar multiply
@@ -256,16 +256,19 @@ plotter/
   - `vec.distSq(a, b)` — squared distance
   - `vec.lerp(a, b, t)` — linear interpolation
   - `vec.angleBetween(a, b)` — angle between two vectors
-- [ ] Implement 2D-specific functions:
+  - **Note:** Used function overloads (Vec2 and Vec3 signatures) for type-safe return types. Internal `Vec = Vec2 | Vec3` union with `.map()` + `as Vec` cast. `normalize` returns zero vector for zero-length input. `angleBetween` returns 0 for zero-length vectors and clamps dot product to [-1,1] to prevent NaN from `Math.acos`. `distSq` uses a for-loop instead of creating a temp array for performance.
+- [x] Implement 2D-specific functions:
   - `vec.perpendicular(a)` — 90° rotation (`[-y, x]`)
-- [ ] Implement 3D-specific functions:
+  - **Note:** Guards against `-0` when y component is 0.
+- [x] Implement 3D-specific functions:
   - `vec.cross(a, b)` — cross product (returns `Vec3`)
-- [ ] Implement 3D→2D projection functions:
+- [x] Implement 3D→2D projection functions:
   - `vec.projectOrthographic(p, axis)` — drop one axis (e.g., drop Z for top-down)
   - `vec.projectPerspective(p, focalLength)` — simple perspective divide
-- [ ] Export as a `vec` namespace object to avoid name collisions with `math.ts` scalar functions
-- [ ] All functions return new arrays (no mutation)
-- [ ] Write unit tests:
+- [x] Export as a `vec` namespace object to avoid name collisions with `math.ts` scalar functions
+  - **Note:** Used a plain `const vec = { ... }` export (not TS `namespace`) since `erasableSyntaxOnly: true`. Functions are not individually exported — only the `vec` object.
+- [x] All functions return new arrays (no mutation)
+- [x] Write unit tests:
   - `vec.add([1, 2], [3, 4])` returns `[4, 6]`
   - `vec.add([1, 2, 3], [4, 5, 6])` returns `[5, 7, 9]` (works for 3D)
   - `vec.dot([1, 0], [0, 1])` returns `0` (perpendicular)
@@ -274,6 +277,7 @@ plotter/
   - `vec.perpendicular([1, 0])` returns `[0, 1]`
   - `vec.projectPerspective([x, y, z], f)` returns correct `[x*f/z, y*f/z]`
   - `vec.dist` matches manual calculation for known triangles
+  - **Note:** 58 tests across 16 describe blocks, including immutability checks. Total project test count: 124 passing.
 
 **Acceptance Criteria:**
 
