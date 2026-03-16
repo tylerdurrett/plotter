@@ -845,15 +845,15 @@ plotter/
 
 ### 9.2 CLI Scaffold Script (`scripts/new-sketch.ts`)
 
-- [ ] Create a Node.js script (runnable via `tsx` or `ts-node`) that:
+- [x] Create a Node.js script (runnable via `tsx` or `ts-node`) that:
   - Accepts a `--name` argument (e.g., `--name "flow field"`)
   - Generates a date-prefixed slug (e.g., `2026-03-15-flow-field`)
   - Creates `sketches/{slug}/index.ts` by copying the template
   - Creates `sketches/{slug}/presets/` directory
   - Prints the created path to stdout
-- [ ] Add `"new-sketch"` script to `package.json`: `"new-sketch": "tsx scripts/new-sketch.ts"`
-- [ ] Install `tsx` as a dev dependency if not already present
-- [ ] Handle edge cases: name with special characters, sketch already exists
+- [x] Add `"new-sketch"` script to `package.json`: `"new-sketch": "tsx scripts/new-sketch.ts"`
+- [x] Install `tsx` as a dev dependency if not already present
+- [x] Handle edge cases: name with special characters, sketch already exists
 
 **Acceptance Criteria:**
 
