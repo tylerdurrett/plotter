@@ -4,7 +4,7 @@ AGENTS.md should be VERY concise because it goes into every context, and it shou
 
 Key UI rules:
 
-- Dark-theme-first. Only animate `transform`/`opacity`.
+- Dark-theme-first.
 
 ## Development Workflow
 
