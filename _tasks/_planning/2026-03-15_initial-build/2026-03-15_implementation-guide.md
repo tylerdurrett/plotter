@@ -432,10 +432,12 @@ plotter/
 
 ### 4.4 Concentric Circles Example Sketch
 
-- [ ] Create `sketches/2026-03-15-concentric-circles/index.ts` implementing the `SketchModule` contract
-- [ ] Params: `count` (number of circles, default 5), `maxRadius` (default 8 cm), `margin` (default 1.5 cm), `paperSize` (default 'letter')
-- [ ] `render()` uses `geometry.circle()` to generate `count` concentric circles centered on the paper, with radii evenly spaced from `maxRadius / count` to `maxRadius`
-- [ ] Verify the sketch satisfies the `SketchModule` type (TypeScript compiles)
+- [x] Create `sketches/2026-03-15-concentric-circles/index.ts` implementing the `SketchModule` contract
+- [x] Params: `count` (number of circles, default 5), `maxRadius` (default 8 cm), `margin` (default 1.5 cm), `paperSize` (default 'letter')
+  - **Note:** Also added `seed` param (value 42, range 0–9999) for consistency with the framework's seeded random convention, even though this sketch is deterministic. Added `step: 0.5` to `maxRadius` for finer control.
+- [x] `render()` uses `geometry.circle()` to generate `count` concentric circles centered on the paper, with radii evenly spaced from `maxRadius / count` to `maxRadius`
+- [x] Verify the sketch satisfies the `SketchModule` type (TypeScript compiles)
+  - **Note:** `tsc --noEmit` passes cleanly. Uses default export pattern (compatible with `validateSketchModule` in `useSketchLoader.ts`). All 229 existing tests still pass.
 
 **Acceptance Criteria:**
 
