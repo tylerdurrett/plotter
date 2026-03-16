@@ -146,10 +146,13 @@ plotter/
 
 ### 1.4 Configure Vitest
 
-- [ ] Install `vitest` and `@testing-library/react@^16.1.0` (v16.1.0+ required for React 19), `@testing-library/jest-dom`, `jsdom`
-- [ ] Add Vitest config (inline in `vite.config.ts` or separate `vitest.config.ts`)
-- [ ] Create a trivial test file (`src/lib/__tests__/setup.test.ts`) that asserts `1 + 1 === 2`
-- [ ] Add `"test"` script to `package.json`
+- [x] Install `vitest` and `@testing-library/react@^16.1.0` (v16.1.0+ required for React 19), `@testing-library/jest-dom`, `jsdom`
+  - **Note:** Installed vitest 4.1.0, @testing-library/react 16.3.2, @testing-library/jest-dom 6.9.1, @testing-library/dom 10.4.1, jsdom 29.0.0.
+- [x] Add Vitest config (inline in `vite.config.ts` or separate `vitest.config.ts`)
+  - **Note:** Used inline config in `vite.config.ts` with `/// <reference types="vitest/config" />`. Added explicit `include` pattern scoped to `src/` and `tests/` directories to prevent Vitest from picking up unrelated test files in `.claude/skills/`.
+- [x] Create a trivial test file (`src/lib/__tests__/setup.test.ts`) that asserts `1 + 1 === 2`
+- [x] Add `"test"` script to `package.json`
+  - **Note:** Added both `"test": "vitest run"` (single run) and `"test:watch": "vitest"` (watch mode).
 
 **Acceptance Criteria:**
 
