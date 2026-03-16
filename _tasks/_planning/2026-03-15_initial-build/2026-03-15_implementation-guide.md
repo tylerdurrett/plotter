@@ -604,15 +604,24 @@ plotter/
 
 ### 6.2 Sketch Selector (`src/components/SketchSelector.tsx`)
 
-- [ ] Create a component that displays the list of available sketches from `useSketchLoader`
-- [ ] Each sketch is a clickable list item showing the sketch name (derived from directory name, e.g., "concentric-circles")
-- [ ] Clicking a sketch triggers `loadSketch(name)`, which:
+- [x] Create a component that displays the list of available sketches from `useSketchLoader`
+  - **Note:** Created `src/components/SketchSelector.tsx` with props: `sketches`, `activeSketch`, `onSelect`, `loading`. Uses `role="listbox"` / `role="option"` for accessibility.
+- [x] Each sketch is a clickable list item showing the sketch name (derived from directory name, e.g., "concentric-circles")
+  - **Note:** `formatSketchName()` strips date prefix (e.g., `2026-03-15-concentric-circles` → `Concentric Circles`), replaces hyphens with spaces, and title-cases each word.
+- [x] Clicking a sketch triggers `loadSketch(name)`, which:
   - Dynamically imports the new sketch module
   - **Calls the new sketch's `setup(ctx)` if defined** (one-time initialization)
   - Resets the `ControlPanel` with the new sketch's params
   - Runs the new sketch's `render()` and updates the viewer
-- [ ] Highlight the currently active sketch in the list
-- [ ] Show a loading indicator during sketch import
+  - **Note:** All handled by existing `app.tsx` wiring — `onSelect` calls `loadSketch` directly, setup/render/ControlPanel reset already worked via existing effects and `key={activeSketchName}`.
+- [x] Highlight the currently active sketch in the list
+  - **Note:** Active sketch gets `bg-accent text-accent-foreground`; inactive items use `text-muted-foreground` with `hover:bg-accent/50 hover:text-foreground`.
+- [x] Show a loading indicator during sketch import
+  - **Note:** Spinner (CSS `animate-spin` border trick) appears on the active item while `loading` is true. Button is disabled during loading to prevent double-clicks.
+
+**Divergence from plan:** Removed the full-screen loading/error gates from `app.tsx` (lines 150-164). Previously, any `loading` state blocked the entire UI. Now loading is shown inline via the SketchSelector spinner, and load errors are shown inline in the center viewport. This keeps the layout visible during sketch switches.
+
+**Note:** 10 new tests added: 3 for `formatSketchName` (date prefix stripping, no-prefix handling, single-word names) and 7 for `SketchSelector` (render all names, active highlight, onSelect callback, loading spinner, disabled while loading, empty list message, listbox/option roles). Updated 1 existing `AppLayout` test to match formatted name. Total project test count: 266 passing.
 
 **Acceptance Criteria:**
 

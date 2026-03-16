@@ -67,7 +67,8 @@ describe('AppLayout — three-zone layout', () => {
   it('left sidebar shows active sketch name', () => {
     render(<App />)
     const left = screen.getByTestId('sidebar-left')
-    expect(within(left).getByText('test-sketch')).toBeInTheDocument()
+    // SketchSelector formats "test-sketch" → "Test Sketch"
+    expect(within(left).getByText('Test Sketch')).toBeInTheDocument()
   })
 
   it('right panel contains ControlPanel', () => {

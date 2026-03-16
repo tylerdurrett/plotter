@@ -6,6 +6,7 @@ import {
 } from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { PanelLayout } from '@/components/PanelLayout'
+import { SketchSelector } from '@/components/SketchSelector'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -147,22 +148,6 @@ function App() {
     controlPanelRef.current?.setValues({ seed: newSeed })
   }, [])
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-foreground">
-        <p className="text-sm text-muted-foreground">Loading sketch…</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-foreground">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    )
-  }
-
   const leftSidebar = (
     <aside
       data-testid="sidebar-left"
@@ -174,12 +159,12 @@ function App() {
         </h2>
       </div>
       <ScrollArea className="flex-1">
-        {/* Phase 6.2: SketchSelector component replaces this placeholder */}
-        <div className="px-3 py-2">
-          <p className="text-sm text-muted-foreground">
-            {activeSketchName ?? 'No sketch loaded'}
-          </p>
-        </div>
+        <SketchSelector
+          sketches={sketchList}
+          activeSketch={activeSketchName}
+          onSelect={loadSketch}
+          loading={loading}
+        />
       </ScrollArea>
       <Separator />
       <div className="p-3">
@@ -192,11 +177,12 @@ function App() {
     </aside>
   )
 
+  const displayError = error ?? renderError
   const centerViewport = (
     <ErrorBoundary>
-      {renderError ? (
+      {displayError ? (
         <div className="flex h-full items-center justify-center bg-background">
-          <p className="text-sm text-destructive">{renderError}</p>
+          <p className="text-sm text-destructive">{displayError}</p>
         </div>
       ) : (
         <SketchViewer
