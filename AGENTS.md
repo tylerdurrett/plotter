@@ -22,3 +22,4 @@ Small changes are one-offs. Larger features use `_tasks/` with status folders: `
 - Security is always important.
 - Always update docs when you are finished
 - Always run the code review when you're done implementing a plan
+- Check, don't assume. Your knowledge is limited and often outdated.
