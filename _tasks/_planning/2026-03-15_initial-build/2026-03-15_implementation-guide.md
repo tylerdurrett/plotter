@@ -296,9 +296,11 @@ plotter/
 
 ### 3.1 Seeded Random (`src/lib/random.ts`)
 
-- [ ] Install `alea` and `simplex-noise` packages
-- [ ] Create `src/lib/alea.d.ts` type declaration — `alea` ships no TypeScript types and `@types/alea` does not exist. Declare the module with `declare module 'alea' { ... }` exporting the PRNG factory function.
-- [ ] Implement `createRandom(seed)` factory returning an object with:
+- [x] Install `alea` and `simplex-noise` packages
+  - **Note:** Installed alea 1.0.1 and simplex-noise 4.0.3. simplex-noise ships with TypeScript types; alea does not.
+- [x] Create `src/lib/alea.d.ts` type declaration — `alea` ships no TypeScript types and `@types/alea` does not exist. Declare the module with `declare module 'alea' { ... }` exporting the PRNG factory function.
+  - **Note:** Declared `AleaPRNG` interface (callable + `exportState`/`importState`) and default export factory. Compatible with `verbatimModuleSyntax: true`.
+- [x] Implement `createRandom(seed)` factory returning an object with:
   - `value()` — uniform [0, 1)
   - `range(min, max)` — uniform float in range
   - `rangeFloor(min, max)` — integer in range
@@ -307,10 +309,11 @@ plotter/
   - `pick(array)` — random element
   - `shuffle(array)` — Fisher-Yates (returns new array, does not mutate)
   - `onCircle(radius)` — random point on circle perimeter
-  - `insideCircle(radius)` — random point inside circle
+  - `insideCircle(radius)` — random point inside circle (sqrt distribution for uniform area coverage)
   - `noise2D(x, y)` — simplex noise seeded to this instance
   - `noise3D(x, y, z)` — simplex noise seeded to this instance
-- [ ] Write unit tests:
+  - **Note:** Uses separate alea instances for noise2D/noise3D (seeded with `${seed}-noise2d` / `${seed}-noise3d`) so noise calls don't advance the main PRNG sequence. `insideCircle` uses sqrt distribution (not rejection sampling) for uniform area coverage.
+- [x] Write unit tests:
   - Same seed produces identical sequences (call `value()` 100 times, compare arrays)
   - Different seeds produce different sequences
   - `range(5, 10)` always returns values in [5, 10)
@@ -318,6 +321,7 @@ plotter/
   - `shuffle` returns a new array (not the same reference) with the same elements
   - `noise2D` returns consistent values for same seed + coordinates
   - `gaussian` mean and std approximate expected values over many samples
+  - **Note:** 30 tests across 12 describe blocks. Additional tests for: boolean coverage, pick coverage, onCircle/insideCircle radius and Vec2 tuple checks, noise3D bounds, and independence (noise calls don't affect value() sequence). Total project test count: 154 passing.
 
 **Acceptance Criteria:**
 
