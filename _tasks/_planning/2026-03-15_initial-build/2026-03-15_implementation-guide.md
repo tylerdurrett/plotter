@@ -6,9 +6,9 @@
 
 ## Overview
 
-This guide breaks the full Plotter Sketch Studio build into 9 sequential phases. The guiding principle is **usability at every phase boundary**: after completing each phase, the system is in a working, testable state. A developer can stop at any phase boundary and have something functional.
+This guide breaks the full Plotter Sketch Studio build into 10 sequential phases. The guiding principle is **usability at every phase boundary**: after completing each phase, the system is in a working, testable state. A developer can stop at any phase boundary and have something functional.
 
-The sequencing follows a bottom-up strategy: foundational tooling first (Phase 1), then pure utility libraries that can be tested in isolation (Phases 2–3), then the core rendering pipeline (Phase 4), then interactivity layers (Phases 5–6), then output and persistence features (Phases 7–8), and finally developer tooling and end-to-end verification (Phase 9).
+The sequencing follows a bottom-up strategy: foundational tooling first (Phase 1), then pure utility libraries that can be tested in isolation (Phases 2–3), then the core rendering pipeline (Phase 4), then interactivity layers (Phases 5–6), then output and persistence features (Phases 7–8), developer tooling and end-to-end verification (Phase 9), and finally documentation (Phase 10).
 
 Vitest is introduced in Phase 1 and used immediately in Phase 2. Every phase that produces testable code includes test-writing tasks within that phase. The Playwright E2E test comes last because it exercises the full pipeline and depends on all prior phases.
 
@@ -447,13 +447,15 @@ plotter/
 
 ### 4.5 Wire It Together — Minimal App
 
-- [ ] Update `app.tsx` to:
+- [x] Update `app.tsx` to:
   - Use `useSketchLoader` to load the concentric circles sketch on mount
   - **Call the sketch's `setup(ctx)` if defined** — once after initial load (not on every param change)
   - Build a `SketchContext` from the sketch's paper size params
   - Call the sketch's `render(ctx, defaultParams)` to get polylines
   - Pass polylines to `SketchViewer`, **wrapped in `ErrorBoundary`** from Phase 4.2
-- [ ] Verify in the browser: five concentric circles appear on a paper-shaped canvas
+  - **Note:** `extractParamValues()` helper extracts default values from Leva-style param schema (handles both `{ value: x }` objects and raw primitives). Setup runs in a `useEffect` with a ref guard to ensure it fires once per sketch load. Render computation uses `useMemo` with error derived inline (not via `setState`, which React 19's strict lint rules forbid inside `useMemo`). Loading/error states shown as centered messages.
+- [x] Verify in the browser: five concentric circles appear on a paper-shaped canvas
+  - **Note:** Fixed coordinate system mismatch — `SketchViewer` now offsets polylines by the margin so sketches can use (0,0) as the drawing-area origin. Circles are properly centered within the margin guides. All 229 existing tests still pass.
 
 **Acceptance Criteria:**
 
@@ -786,6 +788,90 @@ plotter/
 
 ---
 
+## Phase 10: Documentation
+
+**Purpose:** Create a README and comprehensive documentation so that new users and future contributors can understand, set up, and use the system without reading the source code.
+
+**Rationale:** Documentation is sequenced last because it describes the finished system. Writing docs earlier would require constant revision as APIs and features change. With all phases complete, the docs can accurately describe the full feature set, CLI tools, and authoring workflow.
+
+### 10.1 README (`README.md`)
+
+- [ ] Create a project README with the following sections:
+  - **Introduction** — what Plotter Sketch Studio is, who it's for (generative artists, pen plotter enthusiasts), and what makes it useful (seeded randomness, live preview, physically accurate SVG export)
+  - **Key Features** — bulleted list of top capabilities: real-time canvas preview, parametric controls via Leva, seeded PRNG + simplex noise, geometry primitives, polyline clipping, SVG export with physical units, preset persistence, CLI sketch scaffolding, HMR sketch development
+  - **Quick Start** — prerequisites (Node.js, pnpm), install, `pnpm dev`, create a new sketch via CLI, open in browser
+  - **Project Structure** — brief annotated tree of key directories (`src/lib/`, `src/components/`, `sketches/`, `scripts/`, `docs/`)
+  - **Documentation** — links into `docs/` for detailed guides (each link with a one-line description)
+  - **Scripts** — table of available `pnpm` scripts (`dev`, `build`, `test`, `test:e2e`, `new-sketch`, `format`, `format:check`, `lint`)
+  - **License** — placeholder or actual license
+
+**Acceptance Criteria:**
+
+- `README.md` exists at project root
+- Quick Start instructions work from a clean clone (verified by following them)
+- All links to `docs/` files resolve correctly
+- No stale or inaccurate information
+
+### 10.2 Sketch Authoring Guide (`docs/sketch-authoring.md`)
+
+- [ ] Write a comprehensive guide for creating sketches:
+  - **Sketch Module Contract** — the `SketchModule` interface: `params`, optional `setup()`, `render()` return type (`Polyline[]`), default export pattern
+  - **Parameters** — how to define Leva-compatible param schemas (number sliders with min/max/step, booleans, select/options, color pickers), how params flow into `render()`
+  - **SketchContext** — what's available on `ctx`: `width`, `height`, `paper` metadata, `createRandom(seed)`
+  - **Coordinate System** — origin is top-left of the drawing area (inside margins), units are cm, Y increases downward
+  - **Using Randomness** — `createRandom(seed)` API: `value()`, `range()`, `rangeFloor()`, `gaussian()`, `boolean()`, `pick()`, `shuffle()`, `onCircle()`, `insideCircle()`, `noise2D()`, `noise3D()`
+  - **Geometry Helpers** — overview of `circle`, `arc`, `rect`, `line`, `polygon`, `ellipse`, `quadratic`, `cubic`, `spiral` with signature summaries and segment count defaults
+  - **Worked Example** — annotated walkthrough of a simple sketch from params to polylines
+  - **Tips** — keep `render()` pure, use seed for reproducibility, default segment counts for smooth curves
+
+**Acceptance Criteria:**
+
+- A developer unfamiliar with the project can create a working sketch by following this guide
+- All function signatures and param schemas match the actual implementation
+- Worked example compiles and renders correctly
+
+### 10.3 Math & Vector Reference (`docs/math-and-vectors.md`)
+
+- [ ] Write a reference doc covering scalar math and vector utilities:
+  - **Scalar Math (`math.ts`)** — table of all functions (`lerp`, `inverseLerp`, `clamp`, `mapRange`, `fract`, `mod`, `degToRad`, `radToDeg`, `smoothstep`) with signatures, descriptions, and edge case notes
+  - **Vector Utilities (`vec.*`)** — table of all functions grouped by category: arithmetic (`add`, `sub`, `scale`, `negate`), measurement (`len`, `lenSq`, `dist`, `distSq`, `dot`, `angleBetween`), interpolation (`lerp`), normalization (`normalize`), 2D-specific (`perpendicular`), 3D-specific (`cross`), projection (`projectOrthographic`, `projectPerspective`)
+  - **Usage patterns** — importing `vec` namespace, combining scalar and vector math, common recipes (e.g., point on circle, rotating a vector, distance checks)
+
+**Acceptance Criteria:**
+
+- Every exported function from `math.ts` and `vec.ts` is documented
+- Function signatures match the actual implementation
+- Usage examples compile and produce correct results
+
+### 10.4 SVG Export & Clipping Guide (`docs/svg-export.md`)
+
+- [ ] Write a guide covering the output pipeline:
+  - **SVG Serialization** — `polylinesToSVG()` options (`width`, `height`, `units`, `strokeWidth`, `strokeColor`), output format, unit conversion behavior, viewBox semantics
+  - **Polyline Clipping** — `clipPolylinesToBox()` API, when/why to clip (margin enforcement), how split segments work
+  - **Export Panel** — UI controls, export vs copy workflow, filename format
+  - **Plotter Workflow Tips** — recommended stroke widths for common pen sizes, importing into Inkscape/plotter software, paper size accuracy
+
+**Acceptance Criteria:**
+
+- Export pipeline is fully documented from polylines to SVG file
+- Plotter-specific tips are practical and accurate
+
+### 10.5 Presets & CLI Reference (`docs/presets-and-cli.md`)
+
+- [ ] Write a reference covering preset persistence and the CLI tool:
+  - **Presets** — how presets work (JSON files in `sketches/<name>/presets/`), saving/loading/deleting via UI, preset file format, committing presets with sketch code
+  - **Vite Plugin API** — dev-only REST endpoints for preset CRUD (for advanced users or scripting)
+  - **CLI Sketch Scaffold** — `pnpm new-sketch -- --name "my sketch"` usage, naming conventions (date-prefixed slug), what gets created, template contents
+  - **Development Workflow** — typical edit-save-preview loop, HMR behavior, using presets to save good parameter combinations
+
+**Acceptance Criteria:**
+
+- Preset file format and storage location are clearly documented
+- CLI usage examples are accurate and work when run
+- Workflow section gives a practical mental model for using the tool day-to-day
+
+---
+
 ## Dependency Graph
 
 ```
@@ -822,7 +908,11 @@ Phase 8 (Preset Persistence)     |
          |                       |
 Phase 9 (CLI & E2E)             |
   9.1 → 9.2                     |
-  9.3 (depends on all phases)   /
+  9.3 (depends on all phases)   |
+         |                       |
+Phase 10 (Documentation)        |
+  10.1 (README, depends on all) |
+  10.2 → 10.3 → 10.4 → 10.5    /
 ```
 
 Note: Phases 7.1 and 7.2 (SVG serialization and clipping) are pure library code with no UI dependencies. They could be implemented as early as Phase 2/3 alongside the other utility modules. They are sequenced in Phase 7 to keep the export pipeline cohesive, but a developer could pull them forward if desired.
@@ -847,3 +937,4 @@ Note: Phases 7.1 and 7.2 (SVG serialization and clipping) are pure library code 
 | E2E test last (9)                                         | Exercises the full pipeline — meaningless until all phases are complete                                                              |
 | shadcn/ui initialized in Phase 1, used in Phase 6         | Config files and utils are needed early; actual components are added as needed per phase                                             |
 | Second sketch in Phase 6 (not Phase 4)                    | Phase 4 only needs one sketch to prove the pipeline; the second sketch exists to test sketch _switching_, which is a Phase 6 concern |
+| Documentation last (10)                                   | Docs describe the finished system; writing them earlier would require constant revision as APIs evolve through Phases 4–9            |
