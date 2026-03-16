@@ -960,11 +960,12 @@ plotter/
 
 ### 10.5 Presets & CLI Reference (`docs/presets-and-cli.md`)
 
-- [ ] Write a reference covering preset persistence and the CLI tool:
+- [x] Write a reference covering preset persistence and the CLI tool:
   - **Presets** — how presets work (JSON files in `sketches/<name>/presets/`), saving/loading/deleting via UI, preset file format, committing presets with sketch code
   - **Vite Plugin API** — dev-only REST endpoints for preset CRUD (for advanced users or scripting)
   - **CLI Sketch Scaffold** — `pnpm new-sketch -- --name "my sketch"` usage, naming conventions (date-prefixed slug), what gets created, template contents
   - **Development Workflow** — typical edit-save-preview loop, HMR behavior, using presets to save good parameter combinations
+  - **Note:** All four sections implemented as specified. Presets section covers storage format (with file tree and JSON example), Preset Panel UI workflow (save/load/delete), and committing presets. Vite Plugin API section documents all 4 endpoints in a table with curl examples, name validation regex, and error response codes. CLI section covers usage, naming rules with input→slug→directory table, error cases, and template contents. Development Workflow section walks through a typical session: create → edit → explore → save presets → export → commit. Cross-links to `docs/hmr.md` and `docs/svg-export.md`. README updated with link to the new doc.
 
 **Acceptance Criteria:**
 

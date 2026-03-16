@@ -170,11 +170,11 @@ The Export Panel appears in the right sidebar below the parameter controls. It p
 
 ### Controls
 
-| Control      | Type         | Default   | Description                    |
-| ------------ | ------------ | --------- | ------------------------------ |
-| Stroke       | Number input | `0.03`    | Stroke width in paper units    |
-| Color        | Color picker | `#000000` | Stroke color for all polylines |
-| Units        | Select       | `cm`      | Output units: cm, in, or mm    |
+| Control | Type         | Default   | Description                    |
+| ------- | ------------ | --------- | ------------------------------ |
+| Stroke  | Number input | `0.03`    | Stroke width in paper units    |
+| Color   | Color picker | `#000000` | Stroke color for all polylines |
+| Units   | Select       | `cm`      | Output units: cm, in, or mm    |
 
 ### Path statistics
 

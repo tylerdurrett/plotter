@@ -63,6 +63,7 @@ plotter/
 - [Sketch Authoring Guide](docs/sketch-authoring.md) — how to create sketches: module contract, parameters, coordinate system, randomness, geometry helpers, and a worked example
 - [Math & Vector Reference](docs/math-and-vectors.md) — scalar math utilities and vector operations with usage patterns and common recipes
 - [SVG Export & Clipping](docs/svg-export.md) — SVG serialization, polyline clipping, export pipeline, and plotter workflow tips
+- [Presets & CLI Reference](docs/presets-and-cli.md) — preset persistence, Vite plugin API, CLI sketch scaffold, and development workflow
 - [HMR Behavior](docs/hmr.md) — how hot module replacement works for sketches, what persists across updates, and known caveats
 
 ## Scripts
