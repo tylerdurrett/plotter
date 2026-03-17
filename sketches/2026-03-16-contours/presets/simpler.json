@@ -1,0 +1,20 @@
+{
+  "seed": 42,
+  "paperSize": "tabloid",
+  "margin": 0,
+  "xResolution": 198,
+  "numLayers": 276,
+  "horizon": 0,
+  "maxHeight": 0.94,
+  "peakHeight": 6.192,
+  "noiseScale": 0.012,
+  "noiseOffsetX": 0,
+  "noiseOffsetY": 0,
+  "noiseOffsetZ": 0,
+  "noise0Multiplier": 0,
+  "noise1Multiplier": 0,
+  "noise2Multiplier": 2.324,
+  "noise3Multiplier": 0,
+  "noise4Multiplier": 0,
+  "zDistance": 151.46800000000002
+}
