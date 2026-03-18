@@ -96,6 +96,7 @@ _screenshots/
 
 # SVG exports
 exports/
+public/maps/
 
 # Playwright
 test-results/
