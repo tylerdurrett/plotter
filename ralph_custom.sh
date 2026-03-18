@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# ralph.sh - Iterative Claude Code runner for implementation plans
+# ralph_custom.sh - Iterative Claude Code runner with a custom instruction prompt
 # Two-phase loop: plan (read-only) -> execute (auto-accept)
 # Streams Claude's output in real-time so you can watch progress.
-# Usage: ./ralph.sh <plan-file> [max-iterations] [extra-instructions] [--stop-on-manual-test]
+# Usage: ./ralph_custom.sh <prompt-file> [max-iterations] [extra-instructions] [--stop-on-manual-test]
 
 set -uo pipefail
 # Note: not using set -e — we handle errors explicitly to avoid silent exits.
 
 if [ -z "${1:-}" ]; then
-  echo "Usage: $0 <plan-file> [max-iterations] [extra-instructions] [--stop-on-manual-test]"
-  echo "  plan-file:           Path to the implementation plan (e.g. _dev-tasks/2026-02-08_notion/01_notion-implementation.md)"
+  echo "Usage: $0 <prompt-file> [max-iterations] [extra-instructions] [--stop-on-manual-test]"
+  echo "  prompt-file:         Path to a file containing the instruction prompt"
   echo "  max-iterations:      Maximum iterations to run (default: 30)"
   echo "  extra-instructions:  Additional instructions appended to the prompt (optional, quote the string)"
   echo "  --stop-on-manual-test: Stop when NEEDS_HUMAN_TEST is emitted (default: off)"
   exit 1
 fi
 
-PLAN_FILE="$1"
+PROMPT_FILE="$1"
 shift
 
 MAX_ITERATIONS="30"
@@ -40,7 +40,7 @@ while [ $# -gt 0 ]; do
       ;;
     *)
       echo "Error: Unknown argument: $1"
-      echo "Usage: $0 <plan-file> [max-iterations] [extra-instructions] [--stop-on-manual-test]"
+      echo "Usage: $0 <prompt-file> [max-iterations] [extra-instructions] [--stop-on-manual-test]"
       exit 1
       ;;
   esac
@@ -61,10 +61,12 @@ ALLOWED_TOOLS="Edit,Write,Bash,Read,Glob,Grep,WebFetch,WebSearch,TodoWrite,Task,
 TMPFILE=$(mktemp)
 trap 'rm -f "$TMPFILE"' EXIT
 
-if [ ! -f "$PLAN_FILE" ]; then
-  echo "Error: Plan file not found: $PLAN_FILE"
+if [ ! -f "$PROMPT_FILE" ]; then
+  echo "Error: Prompt file not found: $PROMPT_FILE"
   exit 1
 fi
+
+INSTRUCTION_PROMPT=$(cat "$PROMPT_FILE")
 
 if [ "$STOP_ON_MANUAL_TEST" -eq 1 ]; then
   MANUAL_TEST_PROMPT_LINE="- $NEEDS_HUMAN_TEST_MARKER -- Output when you have completed implementation of a section but it requires manual human testing that cannot be automated (e.g., UI verification, hardware interaction, external service integration). Include a description of exactly what needs to be tested alongside the marker."
@@ -73,20 +75,7 @@ else
 fi
 
 PROMPT=$(cat <<EOF
-We are building this:
-$PLAN_FILE
-
-1. Please read the plan carefully to fully understand the objective.
-2. Find the next unfinished phase section.
-3. Read through the codebase as needed to fully understand how the system works and the existing codebase conventions. If a tweak to the plan is needed based on the codebase conventions, please do so.
-
-Our goal is to implement the plan using standard best practices and clean, maintainable, well-documented code following the established codebase patterns. Please implement this next unfinished section of the phase. ONLY ONE SECTION.
-
-As much as possible, perform your own testing and acceptance criteria validation, unless manual user testing is required.
-
-Always run the code quality review after you finish implementation.
-
-IMPORTANT: WHEN YOU FINISH THE SECTION: Please update the implementation doc by checking off all completed tasks and adding notes where anything might have diverged from the original plan. Then commit the feature.
+$INSTRUCTION_PROMPT
 
 IMPORTANT: STOP CODES: You MUST output one of these stop codes when the corresponding condition is met (but you should NOT output any of these codes until the condition is met):
 
@@ -161,7 +150,7 @@ check_stop_codes() {
       echo ""
       echo "=== Human testing required ($phase, iteration $iteration). ==="
       echo "$result"
-      echo "=== Re-run ralph.sh to continue after testing. ==="
+      echo "=== Re-run ralph_custom.sh to continue after testing. ==="
       exit 3
     fi
 
@@ -170,12 +159,12 @@ check_stop_codes() {
 
   if [[ "$result" == *"$COMPLETE_MARKER"* ]]; then
     echo ""
-    echo "=== Plan complete after $iteration iterations ($phase). ==="
+    echo "=== Task complete after $iteration iterations ($phase). ==="
     exit 0
   fi
 }
 
-echo "Plan file: $PLAN_FILE"
+echo "Prompt file: $PROMPT_FILE"
 echo "Max iterations: $MAX_ITERATIONS"
 if [ "$STOP_ON_MANUAL_TEST" -eq 1 ]; then
   echo "Stop on manual test: enabled"
