@@ -79,3 +79,36 @@ export interface ExportOptions extends PaperSize {
   /** CSS color string (default 'black') */
   strokeColor: string
 }
+
+/** Map keys available in map bundles */
+export type MapKey =
+  | 'density_target'
+  | 'flow_x'
+  | 'flow_y'
+  | 'importance'
+  | 'coherence'
+  | 'complexity'
+  | 'flow_speed'
+
+/** Map coordinate fitting mode */
+export type MapFitMode = 'cover' | 'fit'
+
+/** Individual map metadata from manifest */
+export interface MapInfo {
+  filename: string
+  key: MapKey
+  dtype: string
+  shape: [number, number]
+  value_range: [number, number]
+  description: string
+}
+
+/** Map bundle manifest structure */
+export interface MapManifest {
+  version: number
+  source_image: string
+  width: number
+  height: number
+  created_at: string
+  maps: MapInfo[]
+}

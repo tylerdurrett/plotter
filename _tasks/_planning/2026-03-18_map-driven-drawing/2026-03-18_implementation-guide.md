@@ -44,13 +44,19 @@ sketches/
 
 **Rationale:** Everything else depends on this — the sketch algorithm, the overlay, and the selector all need a working map sampler. This phase is fully unit-testable with mocked fetch responses, no browser or UI needed.
 
-### 1.1 Types and Manifest Parsing
+### 1.1 Types and Manifest Parsing ✅
 
-- [ ] Add `MapManifest` type to `src/lib/types.ts` matching the manifest.json schema: `{ version, source_image, width, height, created_at, maps: Array<{ filename, key, dtype, shape, value_range, description }> }`
-- [ ] Add `MapFitMode = 'cover' | 'fit'` type to `src/lib/types.ts`
-- [ ] Add `MapKey` type union: `'density_target' | 'flow_x' | 'flow_y' | 'importance' | 'coherence' | 'complexity' | 'flow_speed'`
-- [ ] Create `src/lib/maps.ts` with `parseManifest(json: unknown): MapManifest` that validates and returns the parsed manifest
-- [ ] Write unit tests for manifest parsing (valid manifest, missing fields, malformed data)
+- [x] Add `MapManifest` type to `src/lib/types.ts` matching the manifest.json schema: `{ version, source_image, width, height, created_at, maps: Array<{ filename, key, dtype, shape, value_range, description }> }`
+- [x] Add `MapFitMode = 'cover' | 'fit'` type to `src/lib/types.ts`
+- [x] Add `MapKey` type union: `'density_target' | 'flow_x' | 'flow_y' | 'importance' | 'coherence' | 'complexity' | 'flow_speed'`
+- [x] Create `src/lib/maps.ts` with `parseManifest(json: unknown): MapManifest` that validates and returns the parsed manifest
+- [x] Write unit tests for manifest parsing (valid manifest, missing fields, malformed data)
+
+**Implementation Notes:**
+- Added `MapInfo` interface for individual map entries to improve type safety
+- Implemented comprehensive validation in `parseManifest` with clear error messages
+- Created 17 unit tests covering all validation cases
+- All tests pass successfully
 
 **Acceptance Criteria:**
 - `parseManifest` correctly parses the tdog-test-1 manifest format
