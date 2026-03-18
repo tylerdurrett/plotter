@@ -179,7 +179,7 @@ function SketchViewer({
   return (
     <div
       ref={containerRef}
-      className={cn('relative h-full w-full bg-background', className)}
+      className={cn('relative h-full w-full overflow-hidden bg-background', className)}
     >
       <canvas ref={canvasRef} className="block" data-testid="sketch-canvas" />
     </div>
