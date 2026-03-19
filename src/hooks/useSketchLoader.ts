@@ -9,6 +9,15 @@ const sketchModules = import.meta.glob<
   { default?: SketchModule } & SketchModule
 >('../../sketches/*/index.ts')
 
+/** localStorage key for persisting the last active sketch */
+export const LAST_SKETCH_KEY = 'plotter:lastSketch'
+
+/** Pick the initial sketch: last-used if still available, else first in list */
+export function getInitialSketch(sketchList: string[]): string {
+  const last = localStorage.getItem(LAST_SKETCH_KEY)
+  return last && sketchList.includes(last) ? last : sketchList[0]
+}
+
 /** Extract the sketch directory name from a glob path */
 export function extractSketchName(path: string): string {
   const match = path.match(/sketches\/([^/]+)\/index\.ts$/)
@@ -95,6 +104,8 @@ export function useSketchLoader(): UseSketchLoaderResult {
 
         const validated = validateSketchModule(mod)
         setActive({ sketch: validated, name })
+        // Remember last sketch so it restores after page refresh
+        localStorage.setItem(LAST_SKETCH_KEY, name)
       } catch (err) {
         if (id !== loadIdRef.current) return
         const message =

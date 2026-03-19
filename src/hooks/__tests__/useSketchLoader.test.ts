@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import {
+  LAST_SKETCH_KEY,
   extractSketchName,
+  getInitialSketch,
   validateSketchModule,
 } from '@/hooks/useSketchLoader'
 import type { SketchModule } from '@/lib/types'
@@ -25,6 +27,28 @@ describe('extractSketchName', () => {
     expect(() => extractSketchName('invalid/path.ts')).toThrow(
       'Invalid sketch path',
     )
+  })
+})
+
+describe('getInitialSketch', () => {
+  const sketches = ['alpha', 'beta', 'gamma']
+
+  afterEach(() => {
+    localStorage.removeItem(LAST_SKETCH_KEY)
+  })
+
+  it('returns the last sketch when it exists in the list', () => {
+    localStorage.setItem(LAST_SKETCH_KEY, 'beta')
+    expect(getInitialSketch(sketches)).toBe('beta')
+  })
+
+  it('falls back to first sketch when stored sketch is not in list', () => {
+    localStorage.setItem(LAST_SKETCH_KEY, 'deleted-sketch')
+    expect(getInitialSketch(sketches)).toBe('alpha')
+  })
+
+  it('falls back to first sketch when nothing is stored', () => {
+    expect(getInitialSketch(sketches)).toBe('alpha')
   })
 })
 

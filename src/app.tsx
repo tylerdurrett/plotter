@@ -18,7 +18,10 @@ import { Separator } from '@/components/ui/separator'
 import { SketchViewer } from '@/components/SketchViewer'
 import { useLevaParamHover } from '@/hooks/useLevaParamHover'
 import { useMaps } from '@/hooks/useMaps'
-import { useSketchLoader } from '@/hooks/useSketchLoader'
+import {
+  getInitialSketch,
+  useSketchLoader,
+} from '@/hooks/useSketchLoader'
 import { createSketchContext } from '@/lib/context'
 import { MapBundle } from '@/lib/maps'
 import { extractParamValues } from '@/lib/params'
@@ -127,7 +130,7 @@ function App() {
   // Load the first sketch on mount
   useEffect(() => {
     if (sketchList.length > 0 && !activeSketchName) {
-      loadSketch(sketchList[0])
+      loadSketch(getInitialSketch(sketchList))
     }
   }, [sketchList, activeSketchName, loadSketch])
 
