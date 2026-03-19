@@ -6,7 +6,7 @@ import {
 } from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ExportPanel } from '@/components/ExportPanel'
-import { MapOverlayPanel, MAP_OPTIONS } from '@/components/MapOverlayPanel'
+import { MapOverlayPanel } from '@/components/MapOverlayPanel'
 import { MapPreview } from '@/components/MapPreview'
 import { PanelLayout } from '@/components/PanelLayout'
 import { PresetPanel } from '@/components/PresetPanel'
@@ -58,7 +58,7 @@ function App() {
   // Overlay state
   const [overlayImage, setOverlayImage] = useState<HTMLImageElement | null>(null)
   const [overlayVisible, setOverlayVisible] = useState(false)
-  const [overlayMapKey, setOverlayMapKey] = useState('density_target')
+  const [overlayMapKey, setOverlayMapKey] = useState('density/density_target')
   const [overlayOpacity, setOverlayOpacity] = useState(0.3)
   const overlayImageCache = useRef<Map<string, HTMLImageElement>>(new Map())
 
@@ -179,7 +179,7 @@ function App() {
 
     // Check if params has mapBundle field
     if ('mapBundle' in activeSketch.params) {
-      const mapBundleParam = activeSketch.params.mapBundle as any
+      const mapBundleParam = activeSketch.params.mapBundle as { options: string[] }
       if (mapBundleParam && typeof mapBundleParam === 'object' && 'options' in mapBundleParam) {
         // Update the options array directly
         mapBundleParam.options.length = 0
@@ -215,6 +215,19 @@ function App() {
 
       // Set the bundle info for preview display
       setCurrentBundleInfo(bundleInfo)
+
+      // Validate overlay map key - reset to default if not available in new bundle
+      if (bundleInfo.availablePreviews && bundleInfo.availablePreviews.length > 0) {
+        const isValidKey = bundleInfo.availablePreviews.some(p => p.path === overlayMapKey)
+        if (!isValidKey) {
+          // Try to find density_target as default, otherwise use first available
+          const defaultPreview = bundleInfo.availablePreviews.find(p => p.path === 'density/density_target')
+            || bundleInfo.availablePreviews[0]
+          if (defaultPreview) {
+            setOverlayMapKey(defaultPreview.path)
+          }
+        }
+      }
 
       // Load the MapBundle
       try {
@@ -252,7 +265,7 @@ function App() {
     }
 
     loadMapBundle()
-  }, [pendingParamsRef.current?.mapBundle, pendingParamsRef.current?.fitMode, mapBundles, activeSketch, scheduleRender])
+  }, [pendingParamsRef.current?.mapBundle, pendingParamsRef.current?.fitMode, mapBundles, activeSketch, scheduleRender, overlayMapKey, setOverlayMapKey])
 
   // Load overlay image when bundle or map key changes
   useEffect(() => {
@@ -272,16 +285,9 @@ function App() {
         return
       }
 
-      // Find the map option to get the category
-      const mapOption = MAP_OPTIONS.find(opt => opt.value === overlayMapKey)
-      if (!mapOption) {
-        console.warn(`Unknown overlay map key: ${overlayMapKey}`)
-        setOverlayImage(null)
-        return
-      }
-
-      // Construct the preview URL
-      const previewUrl = `/maps/${currentBundleInfo.name}/export/previews/${mapOption.category}/${overlayMapKey}.png`
+      // Construct the preview URL using the path directly
+      // overlayMapKey now contains the full path like "density/density_target"
+      const previewUrl = `/maps/${currentBundleInfo.name}/export/previews/${overlayMapKey}.png`
 
       // Load the image
       const img = new Image()

@@ -343,12 +343,21 @@ sketches/
 - Overlay does not interfere with line rendering quality ✓
 - Fit/cover mode affects both overlay and line positions identically ✓
 
-### 5.3 Overlay Map Chooser
+### 5.3 Overlay Map Chooser ✅
 
-- [ ] In `MapOverlayPanel`, add a dropdown to select which preview image to show (density_target, flow_lic, combined_importance, complexity, etc.)
-- [ ] Populate options from the available previews in the bundle's `export/previews/` directory
-- [ ] Default to `density/density_target.png`
-- [ ] Opacity slider (0.1 to 0.8)
+- [x] In `MapOverlayPanel`, add a dropdown to select which preview image to show (density_target, flow_lic, combined_importance, complexity, etc.)
+- [x] Populate options from the available previews in the bundle's `export/previews/` directory
+- [x] Default to `density/density_target.png`
+- [x] Opacity slider (0.1 to 0.8)
+
+**Implementation Notes:**
+- Extended the Vite plugin to dynamically discover all available preview PNGs in the `export/previews/` directory structure
+- Added `PreviewInfo` interface and `availablePreviews` field to `MapBundleInfo` to pass discovered previews to the UI
+- Updated MapOverlayPanel to dynamically populate dropdown from discovered previews, grouped by category
+- Added smart formatting of preview names for display (e.g., "flow_lic" → "Flow Lic")
+- Excluded "contact_sheet" images from the preview list
+- Added validation to reset overlay map key to default when switching between bundles
+- All existing tests updated and passing (9 tests pass)
 
 **Acceptance Criteria:**
 - User can switch between different map previews as the overlay

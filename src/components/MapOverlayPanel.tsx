@@ -2,7 +2,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
-import type { MapBundleInfo } from '@/plugins/vite-plugin-maps'
+import type { MapBundleInfo, PreviewInfo } from '@/plugins/vite-plugin-maps'
 
 interface MapOverlayPanelProps {
   visible: boolean
@@ -14,17 +14,25 @@ interface MapOverlayPanelProps {
   bundleInfo?: MapBundleInfo
 }
 
-// Available preview map types with display names
-const MAP_OPTIONS = [
-  { value: 'density_target', label: 'Density Target', category: 'density' },
-  { value: 'flow_lic', label: 'Flow LIC', category: 'flow' },
-  { value: 'flow_speed', label: 'Flow Speed', category: 'flow' },
-  { value: 'complexity', label: 'Complexity', category: 'complexity' },
-  { value: 'importance', label: 'Importance', category: 'density' },
-  { value: 'luminance', label: 'Luminance', category: 'density' },
-  { value: 'etf_coherence', label: 'ETF Coherence', category: 'flow' },
-  { value: 'flow_quiver', label: 'Flow Quiver', category: 'flow' },
-] as const
+// Helper to format preview names for display
+function formatPreviewName(name: string): string {
+  return name
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+// Group previews by category
+function groupPreviewsByCategory(previews: PreviewInfo[]): Record<string, PreviewInfo[]> {
+  return previews.reduce((groups, preview) => {
+    const category = preview.category
+    if (!groups[category]) {
+      groups[category] = []
+    }
+    groups[category].push(preview)
+    return groups
+  }, {} as Record<string, PreviewInfo[]>)
+}
 
 export function MapOverlayPanel({
   visible,
@@ -48,6 +56,10 @@ export function MapOverlayPanel({
       onOpacityChange(values[0])
     }
   }
+
+  // Use dynamic previews if available, otherwise fall back to empty array
+  const availablePreviews = bundleInfo.availablePreviews || []
+  const groupedPreviews = groupPreviewsByCategory(availablePreviews)
 
   return (
     <div className="p-3 border-t border-border">
@@ -79,16 +91,23 @@ export function MapOverlayPanel({
           <Select
             value={mapKey}
             onValueChange={onMapKeyChange}
-            disabled={!visible}
+            disabled={!visible || availablePreviews.length === 0}
           >
             <SelectTrigger id="overlay-map" className="h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {MAP_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
+              {Object.entries(groupedPreviews).map(([category, previews]) => (
+                <div key={category}>
+                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                    {formatPreviewName(category)}
+                  </div>
+                  {previews.map((preview) => (
+                    <SelectItem key={preview.path} value={preview.path}>
+                      {formatPreviewName(preview.name)}
+                    </SelectItem>
+                  ))}
+                </div>
               ))}
             </SelectContent>
           </Select>
@@ -119,6 +138,3 @@ export function MapOverlayPanel({
     </div>
   )
 }
-
-// Export the map options for use in image loading
-export { MAP_OPTIONS }

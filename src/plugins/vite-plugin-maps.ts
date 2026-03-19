@@ -7,10 +7,17 @@ import type { MapManifest } from '../lib/types'
 
 const API_PATH = '/__api/maps'
 
+export interface PreviewInfo {
+  category: string
+  name: string
+  path: string
+}
+
 export interface MapBundleInfo {
   name: string
   manifest: MapManifest
   previewUrl: string
+  availablePreviews: PreviewInfo[]
 }
 
 function sendJSON(
@@ -45,6 +52,40 @@ async function loadManifest(bundlePath: string): Promise<MapManifest | null> {
   }
 }
 
+async function discoverPreviews(bundlePath: string): Promise<PreviewInfo[]> {
+  const previewsPath = path.join(bundlePath, 'export', 'previews')
+  const previews: PreviewInfo[] = []
+
+  try {
+    const categories = await fs.readdir(previewsPath)
+
+    for (const category of categories) {
+      const categoryPath = path.join(previewsPath, category)
+      const stats = await fs.stat(categoryPath)
+
+      if (!stats.isDirectory()) continue
+
+      const files = await fs.readdir(categoryPath)
+
+      for (const file of files) {
+        if (file.endsWith('.png') && !file.includes('contact_sheet')) {
+          const name = file.replace('.png', '')
+          previews.push({
+            category,
+            name,
+            path: `${category}/${name}`
+          })
+        }
+      }
+    }
+
+    return previews
+  } catch {
+    // If previews directory doesn't exist or has issues, return empty array
+    return []
+  }
+}
+
 export async function handleMapsRequest(
   root: string,
   res: http.ServerResponse,
@@ -63,10 +104,12 @@ export async function handleMapsRequest(
 
       const manifest = await loadManifest(bundlePath)
       if (manifest) {
+        const availablePreviews = await discoverPreviews(bundlePath)
         bundles.push({
           name,
           manifest,
-          previewUrl: `/maps/${name}/export/previews/density/density_target.png`
+          previewUrl: `/maps/${name}/export/previews/density/density_target.png`,
+          availablePreviews
         })
       }
     }

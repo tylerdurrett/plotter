@@ -82,7 +82,7 @@ describe('handleMapsRequest', () => {
     expect(body).toEqual([])
   })
 
-  it('returns single bundle with valid manifest', async () => {
+  it('returns single bundle with valid manifest and no previews', async () => {
     const bundlePath = path.join(tmpRoot, 'public', 'maps', 'test-bundle')
     await fs.mkdir(path.join(bundlePath, 'export'), { recursive: true })
     await fs.writeFile(
@@ -100,6 +100,53 @@ describe('handleMapsRequest', () => {
     expect(body[0].name).toBe('test-bundle')
     expect(body[0].manifest).toEqual(validManifest)
     expect(body[0].previewUrl).toBe('/maps/test-bundle/export/previews/density/density_target.png')
+    expect(body[0].availablePreviews).toEqual([])
+  })
+
+  it('returns bundle with discovered preview images', async () => {
+    const bundlePath = path.join(tmpRoot, 'public', 'maps', 'test-bundle')
+    await fs.mkdir(path.join(bundlePath, 'export'), { recursive: true })
+    await fs.writeFile(
+      path.join(bundlePath, 'export', 'manifest.json'),
+      JSON.stringify(validManifest),
+      'utf-8',
+    )
+
+    // Create preview directories with PNG files
+    await fs.mkdir(path.join(bundlePath, 'export', 'previews', 'density'), { recursive: true })
+    await fs.mkdir(path.join(bundlePath, 'export', 'previews', 'flow'), { recursive: true })
+    await fs.writeFile(path.join(bundlePath, 'export', 'previews', 'density', 'density_target.png'), '', 'utf-8')
+    await fs.writeFile(path.join(bundlePath, 'export', 'previews', 'density', 'luminance.png'), '', 'utf-8')
+    await fs.writeFile(path.join(bundlePath, 'export', 'previews', 'flow', 'flow_lic.png'), '', 'utf-8')
+    await fs.writeFile(path.join(bundlePath, 'export', 'previews', 'density', 'contact_sheet.png'), '', 'utf-8')
+
+    const res = mockRes()
+    await handleMapsRequest(tmpRoot, res)
+
+    expect(res.result.status).toBe(200)
+    const body = JSON.parse(res.result.body)
+    expect(body).toHaveLength(1)
+    expect(body[0].name).toBe('test-bundle')
+    expect(body[0].availablePreviews).toHaveLength(3)
+    expect(body[0].availablePreviews).toContainEqual({
+      category: 'density',
+      name: 'density_target',
+      path: 'density/density_target'
+    })
+    expect(body[0].availablePreviews).toContainEqual({
+      category: 'density',
+      name: 'luminance',
+      path: 'density/luminance'
+    })
+    expect(body[0].availablePreviews).toContainEqual({
+      category: 'flow',
+      name: 'flow_lic',
+      path: 'flow/flow_lic'
+    })
+    // contact_sheet should be filtered out
+    expect(body[0].availablePreviews).not.toContainEqual(
+      expect.objectContaining({ name: 'contact_sheet' })
+    )
   })
 
   it('returns multiple bundles sorted by name', async () => {
@@ -122,6 +169,11 @@ describe('handleMapsRequest', () => {
     const body = JSON.parse(res.result.body)
     expect(body).toHaveLength(3)
     expect(body.map((b: any) => b.name)).toEqual(['bundle-a', 'bundle-b', 'bundle-c'])
+    // Each should have availablePreviews (even if empty)
+    body.forEach((bundle: any) => {
+      expect(bundle).toHaveProperty('availablePreviews')
+      expect(Array.isArray(bundle.availablePreviews)).toBe(true)
+    })
   })
 
   it('skips directories without manifest.json', async () => {
