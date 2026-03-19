@@ -200,18 +200,26 @@ sketches/
 - The `ctx.maps` field is available inside render() and correctly samples map values ✓
 - Switching between bundles updates the loaded maps without stale data ✓
 
-### 3.2 Preview Thumbnail
+### 3.2 Preview Thumbnail ✅
 
-- [ ] Display a small thumbnail image next to or below the map bundle dropdown in the control panel area
-- [ ] Use the `previewUrl` from the API response (the density_target.png preview)
-- [ ] Thumbnail should be contained within the right sidebar width, ~150px tall, with rounded corners matching the UI theme
-- [ ] Show "No map selected" placeholder when no bundle is selected
-- [ ] Consider: this may need a small dedicated component below the Leva panel (since Leva doesn't natively support image display), or it could be a custom Leva plugin component. Choose the simpler path.
+- [x] Display a small thumbnail image next to or below the map bundle dropdown in the control panel area
+- [x] Use the `previewUrl` from the API response (the density_target.png preview)
+- [x] Thumbnail should be contained within the right sidebar width, ~150px tall, with rounded corners matching the UI theme
+- [x] Show "No map selected" placeholder when no bundle is selected
+- [x] Consider: this may need a small dedicated component below the Leva panel (since Leva doesn't natively support image display), or it could be a custom Leva plugin component. Choose the simpler path.
+
+**Implementation Notes:**
+- Created a dedicated `MapPreview` component that displays below the control panel
+- Component handles loading states, error states, and "no map selected" state
+- Image is styled with dark theme, 150px height, and proper rounded corners
+- Preview updates automatically when map bundle changes
+- Includes comprehensive tests covering all states and interactions
+- Component only appears for the portrait-1 sketch that uses map bundles
 
 **Acceptance Criteria:**
-- Selecting a bundle shows its density_target preview image in the right sidebar
-- The image is appropriately sized and styled for the dark theme
-- Changing bundles updates the thumbnail
+- Selecting a bundle shows its density_target preview image in the right sidebar ✓
+- The image is appropriately sized and styled for the dark theme ✓
+- Changing bundles updates the thumbnail ✓
 
 ## Phase 4: Drawing Algorithm
 

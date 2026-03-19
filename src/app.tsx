@@ -6,6 +6,7 @@ import {
 } from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ExportPanel } from '@/components/ExportPanel'
+import { MapPreview } from '@/components/MapPreview'
 import { PanelLayout } from '@/components/PanelLayout'
 import { PresetPanel } from '@/components/PresetPanel'
 import { SketchSelector } from '@/components/SketchSelector'
@@ -21,6 +22,7 @@ import { MapBundle } from '@/lib/maps'
 import { extractParamValues } from '@/lib/params'
 import { PAPER_SIZES } from '@/lib/paper'
 import type { PaperSize, Polyline, SketchModule, MapFitMode } from '@/lib/types'
+import type { MapBundleInfo } from '@/plugins/vite-plugin-maps'
 
 /** Build a SketchContext from explicit param values */
 function buildContext(
@@ -49,6 +51,7 @@ function App() {
   // Map bundle state
   const { bundles: mapBundles } = useMaps()
   const [currentMapBundle, setCurrentMapBundle] = useState<MapBundle | undefined>()
+  const [currentBundleInfo, setCurrentBundleInfo] = useState<MapBundleInfo | undefined>()
   const [loadingMapBundle, setLoadingMapBundle] = useState(false)
 
   // Render output state — updated imperatively from the rAF loop
@@ -189,6 +192,7 @@ function App() {
       // Clear bundle if 'none' is selected
       if (!mapBundleName || mapBundleName === 'none') {
         setCurrentMapBundle(undefined)
+        setCurrentBundleInfo(undefined)
         return
       }
 
@@ -197,8 +201,12 @@ function App() {
       if (!bundleInfo) {
         console.warn(`Map bundle "${mapBundleName}" not found`)
         setCurrentMapBundle(undefined)
+        setCurrentBundleInfo(undefined)
         return
       }
+
+      // Set the bundle info for preview display
+      setCurrentBundleInfo(bundleInfo)
 
       // Load the MapBundle
       try {
@@ -229,6 +237,7 @@ function App() {
       } catch (error) {
         console.error('Failed to load map bundle:', error)
         setCurrentMapBundle(undefined)
+        setCurrentBundleInfo(undefined)
       } finally {
         setLoadingMapBundle(false)
       }
@@ -325,6 +334,12 @@ function App() {
           params={activeSketch.params}
           onChange={scheduleRender}
         />
+        {activeSketchName === '2026-03-18-portrait-1' && (
+          <MapPreview
+            bundleInfo={currentBundleInfo}
+            loading={loadingMapBundle}
+          />
+        )}
       </div>
       <Separator />
       <ExportPanel
