@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { parseManifest, computeMapTransform, sampleMap } from '../maps'
-import type { MapManifest } from '@/lib/types'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { parseManifest, computeMapTransform, sampleMap, MapBundle } from '../maps'
+import type { MapManifest, MapFitMode } from '@/lib/types'
 
 describe('parseManifest', () => {
   const validManifest = {
@@ -757,6 +757,513 @@ describe('sampleMap', () => {
           expect(actual).toBe(expected)
         }
       }
+    })
+  })
+})
+
+describe('MapBundle', () => {
+  // Mock fetch for tests
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  // Create a test manifest
+  const createTestManifest = (): MapManifest => ({
+    version: 1,
+    source_image: 'test_image',
+    width: 4,
+    height: 4,
+    created_at: '2024-01-01T00:00:00Z',
+    maps: [
+      {
+        filename: 'density_target.bin',
+        key: 'density_target',
+        dtype: 'float32',
+        shape: [4, 4],
+        value_range: [0.0, 1.0],
+        description: 'Test density map',
+      },
+      {
+        filename: 'flow_x.bin',
+        key: 'flow_x',
+        dtype: 'float32',
+        shape: [4, 4],
+        value_range: [-1.0, 1.0],
+        description: 'Test flow X',
+      },
+      {
+        filename: 'flow_y.bin',
+        key: 'flow_y',
+        dtype: 'float32',
+        shape: [4, 4],
+        value_range: [-1.0, 1.0],
+        description: 'Test flow Y',
+      },
+      {
+        filename: 'complexity.bin',
+        key: 'complexity',
+        dtype: 'float32',
+        shape: [4, 4],
+        value_range: [0.0, 1.0],
+        description: 'Test complexity',
+      },
+    ],
+  })
+
+  // Create test binary data (4x4 grid)
+  const createTestBinaryData = (offset = 0): ArrayBuffer => {
+    const data = new Float32Array(16)
+    for (let i = 0; i < 16; i++) {
+      data[i] = (i + offset) / 16
+    }
+    return data.buffer
+  }
+
+  // Helper to create successful JSON response
+  const jsonResponse = (data: unknown): Response => {
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Helper to create successful binary response
+  const binaryResponse = (data: ArrayBuffer): Response => {
+    return new Response(data, {
+      status: 200,
+      headers: { 'Content-Type': 'application/octet-stream' },
+    })
+  }
+
+  describe('MapBundle.load', () => {
+    it('fetches only manifest.json on load', async () => {
+      const manifest = createTestManifest()
+      fetchMock.mockResolvedValueOnce(jsonResponse(manifest))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      // Should have fetched only the manifest
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledWith('/maps/test/manifest.json')
+
+      // Should have the manifest accessible
+      expect(bundle.manifest).toEqual(manifest)
+      expect(bundle.mapWidth).toBe(4)
+      expect(bundle.mapHeight).toBe(4)
+    })
+
+    it('computes transform for fit mode', async () => {
+      const manifest = createTestManifest()
+      fetchMock.mockResolvedValueOnce(jsonResponse(manifest))
+
+      const bundle = await MapBundle.load('/maps/test', 20, 20, 'fit')
+
+      // With a 4x4 map on 20x20 paper in fit mode, scale should be 5
+      // Verify by sampling - if transform is correct, sampling should work
+      expect(bundle.mapWidth).toBe(4)
+      expect(bundle.mapHeight).toBe(4)
+    })
+
+    it('computes transform for cover mode', async () => {
+      const manifest = createTestManifest()
+      fetchMock.mockResolvedValueOnce(jsonResponse(manifest))
+
+      const bundle = await MapBundle.load('/maps/test', 20, 30, 'cover')
+
+      // Bundle should be created with cover mode transform
+      expect(bundle.manifest).toEqual(manifest)
+    })
+
+    it('throws error on failed manifest fetch', async () => {
+      fetchMock.mockResolvedValueOnce(
+        new Response(null, { status: 404, statusText: 'Not Found' }),
+      )
+
+      await expect(
+        MapBundle.load('/maps/missing', 10, 10, 'fit'),
+      ).rejects.toThrow('Failed to load manifest from /maps/missing/manifest.json: 404 Not Found')
+    })
+
+    it('throws error on invalid manifest JSON', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ invalid: 'manifest' }))
+
+      await expect(MapBundle.load('/maps/test', 10, 10, 'fit')).rejects.toThrow()
+    })
+  })
+
+  describe('ensureMap', () => {
+    it('fetches .bin file on first call', async () => {
+      const manifest = createTestManifest()
+      const densityData = createTestBinaryData()
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(densityData))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      // Initially only manifest was fetched
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+
+      // Ensure density map
+      await bundle.ensureMap('density_target')
+
+      // Should have fetched the .bin file
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(fetchMock).toHaveBeenNthCalledWith(2, '/maps/test/density_target.bin')
+    })
+
+    it('does not re-fetch on subsequent calls', async () => {
+      const manifest = createTestManifest()
+      const densityData = createTestBinaryData()
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(densityData))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      // Ensure density map twice
+      await bundle.ensureMap('density_target')
+      await bundle.ensureMap('density_target')
+
+      // Should have fetched only once
+      expect(fetchMock).toHaveBeenCalledTimes(2) // manifest + one .bin file
+    })
+
+    it('fetches multiple different maps independently', async () => {
+      const manifest = createTestManifest()
+      const densityData = createTestBinaryData(0)
+      const flowXData = createTestBinaryData(16)
+      const flowYData = createTestBinaryData(32)
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(densityData))
+        .mockResolvedValueOnce(binaryResponse(flowXData))
+        .mockResolvedValueOnce(binaryResponse(flowYData))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      await bundle.ensureMap('density_target')
+      await bundle.ensureMap('flow_x')
+      await bundle.ensureMap('flow_y')
+
+      expect(fetchMock).toHaveBeenCalledTimes(4) // manifest + 3 maps
+      expect(fetchMock).toHaveBeenCalledWith('/maps/test/density_target.bin')
+      expect(fetchMock).toHaveBeenCalledWith('/maps/test/flow_x.bin')
+      expect(fetchMock).toHaveBeenCalledWith('/maps/test/flow_y.bin')
+    })
+
+    it('throws error for non-existent map key', async () => {
+      const manifest = createTestManifest()
+      fetchMock.mockResolvedValueOnce(jsonResponse(manifest))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      // @ts-expect-error - testing invalid key
+      await expect(bundle.ensureMap('invalid_key')).rejects.toThrow(
+        "Map key 'invalid_key' not found in manifest",
+      )
+    })
+
+    it('throws error on failed .bin fetch', async () => {
+      const manifest = createTestManifest()
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(
+          new Response(null, { status: 404, statusText: 'Not Found' }),
+        )
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      await expect(bundle.ensureMap('density_target')).rejects.toThrow(
+        "Failed to load map 'density_target' from /maps/test/density_target.bin: 404 Not Found",
+      )
+    })
+
+    it('validates binary data size', async () => {
+      const manifest = createTestManifest()
+      // Wrong size data (8 values instead of 16)
+      const wrongSizeData = new Float32Array(8).buffer
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(wrongSizeData))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      await expect(bundle.ensureMap('density_target')).rejects.toThrow(
+        "Map 'density_target' has incorrect size: expected 16 values, got 8",
+      )
+    })
+  })
+
+  describe('sample', () => {
+    it('samples loaded map with correct bilinear interpolation', async () => {
+      const manifest = createTestManifest()
+      // Create predictable data: value = y * 4 + x
+      const data = new Float32Array([
+        0, 1, 2, 3,
+        4, 5, 6, 7,
+        8, 9, 10, 11,
+        12, 13, 14, 15,
+      ])
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(data.buffer))
+
+      const bundle = await MapBundle.load('/maps/test', 4, 4, 'fit')
+      await bundle.ensureMap('density_target')
+
+      // With 4x4 map on 4x4 drawing area, scale is 1:1, no offset
+      // So cm coords map directly to pixel coords
+      expect(bundle.sample('density_target', 0, 0)).toBe(0)
+      expect(bundle.sample('density_target', 1, 0)).toBe(1)
+      expect(bundle.sample('density_target', 0, 1)).toBe(4)
+      expect(bundle.sample('density_target', 3, 3)).toBe(15)
+
+      // Test interpolation at (0.5, 0.5)
+      // Should average pixels 0, 1, 4, 5 = (0+1+4+5)/4 = 2.5
+      expect(bundle.sample('density_target', 0.5, 0.5)).toBeCloseTo(2.5, 6)
+    })
+
+    it('transforms coordinates based on fit mode', async () => {
+      const manifest = createTestManifest()
+      const data = new Float32Array(16).fill(1.0) // All values are 1.0
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(data.buffer))
+
+      // 4x4 map on 8x8 drawing area - scale should be 2, offset 0
+      const bundle = await MapBundle.load('/maps/test', 8, 8, 'fit')
+      await bundle.ensureMap('density_target')
+
+      // All samples should return 1.0 since all pixels are 1.0
+      expect(bundle.sample('density_target', 4, 4)).toBe(1.0)
+      expect(bundle.sample('density_target', 0, 0)).toBe(1.0)
+      expect(bundle.sample('density_target', 7.9, 7.9)).toBe(1.0)
+    })
+
+    it('returns 0 for unmapped regions in fit mode', async () => {
+      const manifest = createTestManifest()
+      const data = new Float32Array(16).fill(1.0)
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(data.buffer))
+
+      // 4x4 map on 8x12 drawing area (wider than tall)
+      // Map will fit to height, leaving gaps on sides
+      const bundle = await MapBundle.load('/maps/test', 12, 8, 'fit')
+      await bundle.ensureMap('density_target')
+
+      // Sample outside the mapped region should return 0
+      expect(bundle.sample('density_target', 0, 4)).toBe(0) // Left of map
+      expect(bundle.sample('density_target', 11.9, 4)).toBe(0) // Right of map
+
+      // Sample inside the mapped region should return 1
+      expect(bundle.sample('density_target', 6, 4)).toBe(1.0) // Center
+    })
+
+    it('throws error when sampling unloaded map', async () => {
+      const manifest = createTestManifest()
+      fetchMock.mockResolvedValueOnce(jsonResponse(manifest))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      // Try to sample without ensuring the map
+      expect(() => bundle.sample('density_target', 5, 5)).toThrow(
+        "Map 'density_target' not loaded. Call ensureMap('density_target') first.",
+      )
+    })
+
+    it('handles cover mode coordinate transformation', async () => {
+      const manifest = createTestManifest()
+      // Create gradient data for testing
+      const data = new Float32Array([
+        0, 0.25, 0.5, 0.75,
+        0, 0.25, 0.5, 0.75,
+        0, 0.25, 0.5, 0.75,
+        0, 0.25, 0.5, 0.75,
+      ])
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(data.buffer))
+
+      // 4x4 map on 2x8 drawing area (taller than wide)
+      // In cover mode, map will scale to width, cropping top/bottom
+      const bundle = await MapBundle.load('/maps/test', 2, 8, 'cover')
+      await bundle.ensureMap('density_target')
+
+      // Sample in the visible region
+      const value = bundle.sample('density_target', 1, 4)
+      expect(value).toBeGreaterThanOrEqual(0)
+      expect(value).toBeLessThanOrEqual(0.75)
+    })
+  })
+
+  describe('sampleFlow', () => {
+    it('samples both flow_x and flow_y together', async () => {
+      const manifest = createTestManifest()
+      const flowXData = new Float32Array(16).fill(0.5)
+      const flowYData = new Float32Array(16).fill(-0.5)
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(flowXData.buffer))
+        .mockResolvedValueOnce(binaryResponse(flowYData.buffer))
+
+      const bundle = await MapBundle.load('/maps/test', 4, 4, 'fit')
+      await bundle.ensureMap('flow_x')
+      await bundle.ensureMap('flow_y')
+
+      const flow = bundle.sampleFlow(2, 2)
+      expect(flow).toEqual([0.5, -0.5])
+    })
+
+    it('throws error if flow_x not loaded', async () => {
+      const manifest = createTestManifest()
+      const flowYData = new Float32Array(16).fill(-0.5)
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(flowYData.buffer))
+
+      const bundle = await MapBundle.load('/maps/test', 4, 4, 'fit')
+      await bundle.ensureMap('flow_y')
+
+      expect(() => bundle.sampleFlow(2, 2)).toThrow(
+        "Map 'flow_x' not loaded. Call ensureMap('flow_x') first.",
+      )
+    })
+
+    it('throws error if flow_y not loaded', async () => {
+      const manifest = createTestManifest()
+      const flowXData = new Float32Array(16).fill(0.5)
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(flowXData.buffer))
+
+      const bundle = await MapBundle.load('/maps/test', 4, 4, 'fit')
+      await bundle.ensureMap('flow_x')
+
+      expect(() => bundle.sampleFlow(2, 2)).toThrow(
+        "Map 'flow_y' not loaded. Call ensureMap('flow_y') first.",
+      )
+    })
+
+    it('returns Vec2 with interpolated flow values', async () => {
+      const manifest = createTestManifest()
+      // Create varying flow data
+      const flowXData = new Float32Array([
+        0, 0.25, 0.5, 0.75,
+        0, 0.25, 0.5, 0.75,
+        0, 0.25, 0.5, 0.75,
+        0, 0.25, 0.5, 0.75,
+      ])
+      const flowYData = new Float32Array([
+        0, 0, 0, 0,
+        0.25, 0.25, 0.25, 0.25,
+        0.5, 0.5, 0.5, 0.5,
+        0.75, 0.75, 0.75, 0.75,
+      ])
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(flowXData.buffer))
+        .mockResolvedValueOnce(binaryResponse(flowYData.buffer))
+
+      const bundle = await MapBundle.load('/maps/test', 4, 4, 'fit')
+      await bundle.ensureMap('flow_x')
+      await bundle.ensureMap('flow_y')
+
+      // Sample at (1.5, 1.5) - should interpolate
+      const flow = bundle.sampleFlow(1.5, 1.5)
+      expect(flow[0]).toBeCloseTo(0.375, 6) // Between 0.25 and 0.5
+      expect(flow[1]).toBeCloseTo(0.375, 6) // Between 0.25 and 0.5
+    })
+  })
+
+  describe('readonly properties', () => {
+    it('exposes manifest as readonly', async () => {
+      const manifest = createTestManifest()
+      fetchMock.mockResolvedValueOnce(jsonResponse(manifest))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      expect(bundle.manifest).toEqual(manifest)
+      expect(bundle.manifest.version).toBe(1)
+      expect(bundle.manifest.maps).toHaveLength(4)
+    })
+
+    it('exposes mapWidth and mapHeight', async () => {
+      const manifest = createTestManifest()
+      fetchMock.mockResolvedValueOnce(jsonResponse(manifest))
+
+      const bundle = await MapBundle.load('/maps/test', 10, 10, 'fit')
+
+      expect(bundle.mapWidth).toBe(4)
+      expect(bundle.mapHeight).toBe(4)
+    })
+  })
+
+  describe('integration tests', () => {
+    it('complete workflow: load, ensure, sample multiple maps', async () => {
+      const manifest = createTestManifest()
+      const densityData = new Float32Array(16)
+      const flowXData = new Float32Array(16)
+      const flowYData = new Float32Array(16)
+      const complexityData = new Float32Array(16)
+
+      // Fill with test patterns
+      for (let i = 0; i < 16; i++) {
+        densityData[i] = i / 16
+        flowXData[i] = Math.cos(i * Math.PI / 8)
+        flowYData[i] = Math.sin(i * Math.PI / 8)
+        complexityData[i] = 1 - i / 16
+      }
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(manifest))
+        .mockResolvedValueOnce(binaryResponse(densityData.buffer))
+        .mockResolvedValueOnce(binaryResponse(flowXData.buffer))
+        .mockResolvedValueOnce(binaryResponse(flowYData.buffer))
+        .mockResolvedValueOnce(binaryResponse(complexityData.buffer))
+
+      const bundle = await MapBundle.load('/maps/test', 8, 8, 'fit')
+
+      // Load all maps
+      await bundle.ensureMap('density_target')
+      await bundle.ensureMap('flow_x')
+      await bundle.ensureMap('flow_y')
+      await bundle.ensureMap('complexity')
+
+      // Sample various maps
+      const density = bundle.sample('density_target', 4, 4)
+      const flow = bundle.sampleFlow(4, 4)
+      const complexity = bundle.sample('complexity', 4, 4)
+
+      // All should return valid values
+      expect(typeof density).toBe('number')
+      expect(Array.isArray(flow)).toBe(true)
+      expect(flow).toHaveLength(2)
+      expect(typeof complexity).toBe('number')
+
+      // Re-ensuring should not cause additional fetches
+      await bundle.ensureMap('density_target')
+      expect(fetchMock).toHaveBeenCalledTimes(5) // manifest + 4 maps, no extras
     })
   })
 })

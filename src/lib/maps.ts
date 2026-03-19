@@ -1,4 +1,4 @@
-import type { MapManifest, MapInfo, MapKey, MapFitMode } from '@/lib/types'
+import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2 } from '@/lib/types'
 
 const VALID_MAP_KEYS = new Set<MapKey>([
   'density_target',
@@ -197,4 +197,154 @@ export function sampleMap(
   const v0 = v00 * (1 - fx) + v10 * fx
   const v1 = v01 * (1 - fx) + v11 * fx
   return v0 * (1 - fy) + v1 * fy
+}
+
+export class MapBundle {
+  private _manifest: MapManifest
+  private baseUrl: string
+  private transform: MapTransform
+  private mapCache: Map<MapKey, Float32Array>
+  private fitMode: MapFitMode
+
+  private constructor(
+    manifest: MapManifest,
+    baseUrl: string,
+    transform: MapTransform,
+    fitMode: MapFitMode,
+  ) {
+    this._manifest = manifest
+    this.baseUrl = baseUrl
+    this.transform = transform
+    this.fitMode = fitMode
+    this.mapCache = new Map()
+  }
+
+  static async load(
+    baseUrl: string,
+    drawWidth: number,
+    drawHeight: number,
+    fitMode: MapFitMode,
+  ): Promise<MapBundle> {
+    // Fetch manifest.json
+    const manifestUrl = `${baseUrl}/manifest.json`
+    const response = await fetch(manifestUrl)
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to load manifest from ${manifestUrl}: ${response.status} ${response.statusText}`,
+      )
+    }
+
+    const manifestJson = await response.json()
+    const manifest = parseManifest(manifestJson)
+
+    // Compute coordinate transform
+    const transform = computeMapTransform(
+      manifest.width,
+      manifest.height,
+      drawWidth,
+      drawHeight,
+      fitMode,
+    )
+
+    return new MapBundle(manifest, baseUrl, transform, fitMode)
+  }
+
+  async ensureMap(key: MapKey): Promise<void> {
+    // Check if already cached
+    if (this.mapCache.has(key)) {
+      return
+    }
+
+    // Find map info in manifest
+    const mapInfo = this._manifest.maps.find(m => m.key === key)
+    if (!mapInfo) {
+      throw new Error(`Map key '${key}' not found in manifest`)
+    }
+
+    // Fetch the .bin file
+    const binUrl = `${this.baseUrl}/${mapInfo.filename}`
+    const response = await fetch(binUrl)
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to load map '${key}' from ${binUrl}: ${response.status} ${response.statusText}`,
+      )
+    }
+
+    // Convert to Float32Array
+    const arrayBuffer = await response.arrayBuffer()
+    const float32Array = new Float32Array(arrayBuffer)
+
+    // Validate size
+    const expectedSize = mapInfo.shape[0] * mapInfo.shape[1]
+    if (float32Array.length !== expectedSize) {
+      throw new Error(
+        `Map '${key}' has incorrect size: expected ${expectedSize} values, got ${float32Array.length}`,
+      )
+    }
+
+    // Cache it
+    this.mapCache.set(key, float32Array)
+  }
+
+  sample(key: MapKey, x: number, y: number): number {
+    // Check if map is loaded
+    const data = this.mapCache.get(key)
+    if (!data) {
+      throw new Error(
+        `Map '${key}' not loaded. Call ensureMap('${key}') first.`,
+      )
+    }
+
+    // In fit mode, check if the point is in an unmapped region
+    if (this.fitMode === 'fit') {
+      // Check if point is outside the scaled map region
+      const mapScaledWidth = this._manifest.width * this.transform.scale
+      const mapScaledHeight = this._manifest.height * this.transform.scale
+
+      if (
+        x < this.transform.offsetX ||
+        x > this.transform.offsetX + mapScaledWidth ||
+        y < this.transform.offsetY ||
+        y > this.transform.offsetY + mapScaledHeight
+      ) {
+        return 0
+      }
+    }
+
+    // Transform from cm-coords to pixel-coords
+    const px = (x - this.transform.offsetX) / this.transform.scale
+    const py = (y - this.transform.offsetY) / this.transform.scale
+
+    // Sample using bilinear interpolation
+    // sampleMap already handles clamping for out-of-bounds coordinates
+    return sampleMap(data, this._manifest.width, this._manifest.height, px, py)
+  }
+
+  sampleFlow(x: number, y: number): Vec2 {
+    // Ensure both flow maps are loaded
+    if (!this.mapCache.has('flow_x')) {
+      throw new Error("Map 'flow_x' not loaded. Call ensureMap('flow_x') first.")
+    }
+    if (!this.mapCache.has('flow_y')) {
+      throw new Error("Map 'flow_y' not loaded. Call ensureMap('flow_y') first.")
+    }
+
+    const fx = this.sample('flow_x', x, y)
+    const fy = this.sample('flow_y', x, y)
+    return [fx, fy]
+  }
+
+  get manifest(): MapManifest {
+    return this._manifest
+  }
+
+  get mapWidth(): number {
+    return this._manifest.width
+  }
+
+  get mapHeight(): number {
+    return this._manifest.height
+  }
 }

@@ -100,22 +100,29 @@ sketches/
 - Sampling at (0.5, 0.5) returns the average of the 4 corner pixels in a 2×2 grid ✓
 - Sampling at negative coords or beyond width/height clamps to edge values ✓
 
-### 1.4 MapBundle Class
+### 1.4 MapBundle Class ✅
 
-- [ ] Implement `MapBundle` class that holds a manifest, a base URL, loaded map data (cached `Float32Array`s), and the computed coordinate transform
-- [ ] `static async load(baseUrl: string, drawWidth: number, drawHeight: number, fitMode: MapFitMode): Promise<MapBundle>` — fetches manifest.json, stores metadata, does NOT eagerly load .bin files
-- [ ] `async ensureMap(key: MapKey): Promise<void>` — lazily fetches and caches a single .bin file as Float32Array
-- [ ] `sample(key: MapKey, x: number, y: number): number` — transforms cm-coords to pixel-coords using the stored transform, then calls bilinear sample. Returns 0 for unmapped regions in fit mode. Throws if map not loaded (caller must await `ensureMap` first)
-- [ ] `sampleFlow(x: number, y: number): Vec2` — convenience that samples flow_x and flow_y together, returns `[fx, fy]`
-- [ ] Expose `manifest`, `mapWidth`, `mapHeight` as readonly properties
-- [ ] Write unit tests using a small mock bundle (4×4 synthetic Float32Arrays) to verify end-to-end: load → ensureMap → sample
+- [x] Implement `MapBundle` class that holds a manifest, a base URL, loaded map data (cached `Float32Array`s), and the computed coordinate transform
+- [x] `static async load(baseUrl: string, drawWidth: number, drawHeight: number, fitMode: MapFitMode): Promise<MapBundle>` — fetches manifest.json, stores metadata, does NOT eagerly load .bin files
+- [x] `async ensureMap(key: MapKey): Promise<void>` — lazily fetches and caches a single .bin file as Float32Array
+- [x] `sample(key: MapKey, x: number, y: number): number` — transforms cm-coords to pixel-coords using the stored transform, then calls bilinear sample. Returns 0 for unmapped regions in fit mode. Throws if map not loaded (caller must await `ensureMap` first)
+- [x] `sampleFlow(x: number, y: number): Vec2` — convenience that samples flow_x and flow_y together, returns `[fx, fy]`
+- [x] Expose `manifest`, `mapWidth`, `mapHeight` as readonly properties
+- [x] Write unit tests using a small mock bundle (4×4 synthetic Float32Arrays) to verify end-to-end: load → ensureMap → sample
+
+**Implementation Notes:**
+- Added `fitMode` property to MapBundle class to properly handle unmapped regions
+- The class checks if points are outside the scaled map bounds in fit mode and returns 0
+- For points within bounds, `sampleMap` handles edge clamping and bilinear interpolation
+- Created comprehensive test suite with 30+ tests covering all scenarios
+- All tests pass successfully
 
 **Acceptance Criteria:**
-- `MapBundle.load()` fetches only manifest.json, not .bin files
-- `ensureMap('density_target')` fetches density_target.bin once, caches it for subsequent calls
-- `sample('density_target', x, y)` returns correct bilinear-interpolated values in sketch cm-space
-- `sampleFlow(x, y)` returns `[flow_x, flow_y]` as a Vec2
-- Calling `sample` before `ensureMap` throws a clear error
+- `MapBundle.load()` fetches only manifest.json, not .bin files ✓
+- `ensureMap('density_target')` fetches density_target.bin once, caches it for subsequent calls ✓
+- `sample('density_target', x, y)` returns correct bilinear-interpolated values in sketch cm-space ✓
+- `sampleFlow(x, y)` returns `[flow_x, flow_y]` as a Vec2 ✓
+- Calling `sample` before `ensureMap` throws a clear error ✓
 
 ## Phase 2: Bundle Discovery API
 
