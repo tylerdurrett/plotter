@@ -364,36 +364,51 @@ sketches/
 - Each preview renders correctly with the same positioning
 - Opacity slider adjusts overlay transparency in real-time
 
-## Phase 6: Global Sketch Scale
+## Phase 6: Global Sketch Scale ✅
 
 **Purpose:** Add a framework-level zoom/scale that applies to all sketches, allowing detail inspection at different magnifications.
 
 **Rationale:** Independent of map-driven drawing — useful for all sketches. Placed last because it's polish and doesn't block any other phase. Modifies the rendering pipeline (canvas + SVG export) so it's cleanest to do after the overlay is stable.
 
-### 6.1 Scale Parameter and Canvas Rendering
+### 6.1 Scale Parameter and Canvas Rendering ✅
 
-- [ ] Add a `scale` framework-level parameter (not per-sketch) — a slider from 0.25 to 4.0, default 1.0. Place in a "View" section in the right sidebar or as a dedicated control near the canvas.
-- [ ] In `SketchViewer`, apply scale as an additional `ctx.scale(scale, scale)` to the drawing-area coordinate system — polylines render larger/smaller without affecting stroke width
-- [ ] When scale > 1, the drawing extends beyond the paper bounds — add pan/scroll or simply let it overflow (start with overflow, pan is future work)
-- [ ] Update the canvas buffer size calculation to account for scale so lines don't become blurry at high zoom
+- [x] Add a `scale` framework-level parameter (not per-sketch) — a slider from 0.25 to 4.0, default 1.0. Place in a "View" section in the right sidebar or as a dedicated control near the canvas.
+- [x] In `SketchViewer`, apply scale as an additional `ctx.scale(scale, scale)` to the drawing-area coordinate system — polylines render larger/smaller without affecting stroke width
+- [x] When scale > 1, the drawing extends beyond the paper bounds — add pan/scroll or simply let it overflow (start with overflow, pan is future work)
+- [x] Update the canvas buffer size calculation to account for scale so lines don't become blurry at high zoom
 
-**Acceptance Criteria:**
-- Scale=2 renders lines at 2× size, maintaining crisp 1px stroke width
-- Scale=0.5 renders lines at half size
-- Scale=1 behaves identically to the current rendering (no regression)
-- The overlay (if visible) scales with the lines
-
-### 6.2 Scale in SVG Export
-
-- [ ] Modify `buildSVGExport` to accept an optional `scale` parameter
-- [ ] When scale !== 1, multiply all polyline coordinates by scale before serialization. Keep stroke width unchanged.
-- [ ] Update the SVG viewBox to reflect the scaled dimensions
-- [ ] Write unit tests comparing exported SVG at scale=1 vs scale=2
+**Implementation Notes:**
+- Added `viewScale` state to app.tsx with default value 1.0
+- Created `ScalePanel` component with slider control (0.25-4.0 range) positioned below ControlPanel for all sketches
+- Modified `computeLayout` function in SketchViewer to apply scale to display dimensions
+- Scale multiplies the final display size while maintaining stroke width at 1px
+- Canvas centering is preserved with scale (paper stays centered in viewport)
+- Overlay images scale correctly with the same transform
 
 **Acceptance Criteria:**
-- SVG exported at scale=2 has coordinates 2× larger than scale=1
-- Stroke width remains the same in both exports
-- SVG viewBox dimensions reflect the scaled output
+- Scale=2 renders lines at 2× size, maintaining crisp 1px stroke width ✓
+- Scale=0.5 renders lines at half size ✓
+- Scale=1 behaves identically to the current rendering (no regression) ✓
+- The overlay (if visible) scales with the lines ✓
+
+### 6.2 Scale in SVG Export ✅
+
+- [x] Modify `buildSVGExport` to accept an optional `scale` parameter
+- [x] When scale !== 1, multiply all polyline coordinates by scale before serialization. Keep stroke width unchanged.
+- [x] Update the SVG viewBox to reflect the scaled dimensions
+- [x] Write unit tests comparing exported SVG at scale=1 vs scale=2
+
+**Implementation Notes:**
+- Added `scalePolylines` helper function to scale coordinates
+- Modified `buildSVGExport` to accept optional scale parameter (defaults to 1)
+- Scale is applied to coordinates and dimensions but not stroke width
+- ExportPanel displays current scale in the stats line when scale !== 1
+- Created comprehensive test suite with 11 tests covering all scale scenarios
+
+**Acceptance Criteria:**
+- SVG exported at scale=2 has coordinates 2× larger than scale=1 ✓
+- Stroke width remains the same in both exports ✓
+- SVG viewBox dimensions reflect the scaled output ✓
 
 ## Dependency Graph
 

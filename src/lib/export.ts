@@ -15,26 +15,45 @@ export function translateToPage(lines: Polyline[], margin: number): Polyline[] {
 export type SVGExportOptions = Omit<ExportOptions, 'width' | 'height'>
 
 /**
- * Full export pipeline: translate to paper coords → clip to margin bounds → serialize SVG.
+ * Apply scale to polylines by multiplying all coordinates.
+ */
+export function scalePolylines(lines: Polyline[], scale: number): Polyline[] {
+  if (scale === 1) return lines
+  return lines.map((line) => line.map(([x, y]) => [x * scale, y * scale]))
+}
+
+/**
+ * Full export pipeline: scale → translate to paper coords → clip to margin bounds → serialize SVG.
  */
 export function buildSVGExport(
   lines: Polyline[],
   paperSize: PaperSize,
   margin: number,
-  options: SVGExportOptions,
+  options: SVGExportOptions & { scale?: number },
 ): string {
   const { width, height } = paperSize
+  const scale = options.scale ?? 1
+
+  // Apply scale to polylines if needed
+  const scaledLines = scale !== 1 ? scalePolylines(lines, scale) : lines
+
+  // Scale the margin for translation
+  const scaledMargin = margin * scale
 
   // Move polylines from drawing-area coords to paper coords
-  const pageLines = translateToPage(lines, margin)
+  const pageLines = translateToPage(scaledLines, scaledMargin)
 
-  // Clip to the margin box in paper coordinates
-  const clipBounds: BBox = [margin, margin, width - margin, height - margin]
+  // Scale paper dimensions for clipping bounds
+  const scaledWidth = width * scale
+  const scaledHeight = height * scale
+
+  // Clip to the margin box in scaled paper coordinates
+  const clipBounds: BBox = [scaledMargin, scaledMargin, scaledWidth - scaledMargin, scaledHeight - scaledMargin]
   const clipped = clipPolylinesToBox(pageLines, clipBounds)
 
   return polylinesToSVG(clipped, {
-    width,
-    height,
+    width: scaledWidth,
+    height: scaledHeight,
     units: options.units,
     strokeWidth: options.strokeWidth,
     strokeColor: options.strokeColor,

@@ -10,6 +10,7 @@ import { MapOverlayPanel } from '@/components/MapOverlayPanel'
 import { MapPreview } from '@/components/MapPreview'
 import { PanelLayout } from '@/components/PanelLayout'
 import { PresetPanel } from '@/components/PresetPanel'
+import { ScalePanel } from '@/components/ScalePanel'
 import { SketchSelector } from '@/components/SketchSelector'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -61,6 +62,9 @@ function App() {
   const [overlayMapKey, setOverlayMapKey] = useState('density/density_target')
   const [overlayOpacity, setOverlayOpacity] = useState(0.3)
   const overlayImageCache = useRef<Map<string, HTMLImageElement>>(new Map())
+
+  // View scale state (framework-level zoom)
+  const [viewScale, setViewScale] = useState(1.0)
 
   // Render output state — updated imperatively from the rAF loop
   const [lines, setLines] = useState<Polyline[]>([])
@@ -370,6 +374,7 @@ function App() {
           overlayVisible={overlayVisible}
           overlayOpacity={overlayOpacity}
           overlayFitMode={(pendingParamsRef.current?.fitMode as MapFitMode) || 'cover'}
+          scale={viewScale}
           className="h-full"
         />
       )}
@@ -398,6 +403,10 @@ function App() {
           params={activeSketch.params}
           onChange={scheduleRender}
         />
+        <ScalePanel
+          scale={viewScale}
+          onScaleChange={setViewScale}
+        />
         {activeSketchName === '2026-03-18-portrait-1' && (
           <>
             <MapPreview
@@ -423,6 +432,7 @@ function App() {
         lines={lines}
         paperSize={paperSize}
         margin={margin}
+        scale={viewScale}
         sketchName={activeSketchName ?? 'sketch'}
       />
     </aside>

@@ -13,6 +13,7 @@ interface ExportPanelProps {
   lines: Polyline[]
   paperSize: PaperSize
   margin: number
+  scale?: number
   sketchName: string
 }
 
@@ -20,6 +21,7 @@ function ExportPanel({
   lines,
   paperSize,
   margin,
+  scale = 1,
   sketchName,
 }: ExportPanelProps) {
   const [strokeWidth, setStrokeWidth] = useState(0.03)
@@ -49,8 +51,9 @@ function ExportPanel({
         strokeWidth,
         strokeColor,
         units,
+        scale,
       }),
-    [lines, paperSize, margin, strokeWidth, strokeColor, units],
+    [lines, paperSize, margin, strokeWidth, strokeColor, units, scale],
   )
 
   const handleExport = useCallback(() => {
@@ -80,6 +83,7 @@ function ExportPanel({
 
       <p className="mt-2 text-xs text-muted-foreground">
         {stats.polylines} paths &middot; {stats.points} pts
+        {scale !== 1 && ` &middot; Scale: ${Math.round(scale * 100)}%`}
       </p>
 
       <div className="mt-3 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2">

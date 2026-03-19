@@ -19,6 +19,8 @@ interface SketchViewerProps {
   overlayOpacity?: number
   /** Fit mode for the overlay image */
   overlayFitMode?: MapFitMode
+  /** View scale factor (1.0 = 100%, 2.0 = 200%, etc.) */
+  scale?: number
   className?: string
 }
 
@@ -38,6 +40,7 @@ function computeLayout(
   paper: PaperSize,
   containerW: number,
   containerH: number,
+  viewScale: number = 1.0,
 ) {
   const availW = containerW - CONTAINER_PADDING * 2
   const availH = containerH - CONTAINER_PADDING * 2
@@ -46,20 +49,24 @@ function computeLayout(
   const paperAspect = paper.width / paper.height
   const availAspect = availW / availH
 
-  let displayW: number
-  let displayH: number
+  let baseDisplayW: number
+  let baseDisplayH: number
 
   if (paperAspect > availAspect) {
     // Paper is wider relative to container — constrained by width
-    displayW = availW
-    displayH = availW / paperAspect
+    baseDisplayW = availW
+    baseDisplayH = availW / paperAspect
   } else {
     // Paper is taller relative to container — constrained by height
-    displayH = availH
-    displayW = availH * paperAspect
+    baseDisplayH = availH
+    baseDisplayW = availH * paperAspect
   }
 
-  const scale = displayW / paper.width // cm → CSS pixels
+  // Apply view scale to display dimensions
+  const displayW = baseDisplayW * viewScale
+  const displayH = baseDisplayH * viewScale
+
+  const scale = displayW / paper.width // cm → CSS pixels (includes viewScale)
   const offsetX = (containerW - displayW) / 2
   const offsetY = (containerH - displayH) / 2
 
@@ -89,6 +96,7 @@ function SketchViewer({
   overlayVisible = false,
   overlayOpacity = 0.3,
   overlayFitMode = 'cover',
+  scale = 1.0,
   className,
 }: SketchViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -130,10 +138,11 @@ function SketchViewer({
       paperSize,
       containerSize.width,
       containerSize.height,
+      scale,
     )
     if (!layout) return
 
-    const { displayW, displayH, scale, offsetX, offsetY } = layout
+    const { displayW, displayH, scale: pixelScale, offsetX, offsetY } = layout
     const dpr = window.devicePixelRatio || 1
 
     // Set canvas buffer size for HiDPI, CSS size for layout
@@ -155,7 +164,7 @@ function SketchViewer({
     ctx.lineWidth = 1
     ctx.strokeRect(0, 0, displayW, displayH)
 
-    const mPx = margin * scale
+    const mPx = margin * pixelScale
 
     // Margin guides behind lines (default — faint gray)
     if (margin > 0 && !highlightMargin) {
@@ -186,10 +195,10 @@ function SketchViewer({
       // Draw the overlay image with the calculated transform
       ctx.drawImage(
         overlayImage,
-        overlayTransform.offsetX * scale,
-        overlayTransform.offsetY * scale,
-        overlayImage.width * overlayTransform.scale * scale,
-        overlayImage.height * overlayTransform.scale * scale,
+        overlayTransform.offsetX * pixelScale,
+        overlayTransform.offsetY * pixelScale,
+        overlayImage.width * overlayTransform.scale * pixelScale,
+        overlayImage.height * overlayTransform.scale * pixelScale,
       )
 
       // Reset opacity
@@ -208,9 +217,9 @@ function SketchViewer({
     for (const polyline of lines) {
       if (polyline.length < 2) continue
       ctx.beginPath()
-      ctx.moveTo(polyline[0][0] * scale, polyline[0][1] * scale)
+      ctx.moveTo(polyline[0][0] * pixelScale, polyline[0][1] * pixelScale)
       for (let i = 1; i < polyline.length; i++) {
-        ctx.lineTo(polyline[i][0] * scale, polyline[i][1] * scale)
+        ctx.lineTo(polyline[i][0] * pixelScale, polyline[i][1] * pixelScale)
       }
       ctx.stroke()
     }
@@ -222,7 +231,7 @@ function SketchViewer({
     }
 
     ctx.restore()
-  }, [lines, paperSize, margin, highlightMargin, containerSize, overlayImage, overlayVisible, overlayOpacity, overlayFitMode])
+  }, [lines, paperSize, margin, highlightMargin, containerSize, overlayImage, overlayVisible, overlayOpacity, overlayFitMode, scale])
 
   return (
     <div

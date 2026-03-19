@@ -162,4 +162,75 @@ describe('SketchViewer', () => {
       expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
     })
   })
+
+  describe('scale functionality', () => {
+    it('accepts optional scale prop', () => {
+      render(<SketchViewer lines={[]} paperSize={letterSize} scale={2} />)
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('renders without crashing with different scale values', () => {
+      const { rerender } = render(<SketchViewer lines={[]} paperSize={letterSize} scale={0.5} />)
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+
+      rerender(<SketchViewer lines={[]} paperSize={letterSize} scale={1} />)
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+
+      rerender(<SketchViewer lines={[]} paperSize={letterSize} scale={4} />)
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('defaults to scale=1 when not provided', () => {
+      render(<SketchViewer lines={[]} paperSize={letterSize} />)
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('scale works with margins', () => {
+      render(
+        <SketchViewer
+          lines={[]}
+          paperSize={letterSize}
+          margin={2}
+          scale={2}
+        />
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('scale works with polylines', () => {
+      const triangle: Polyline[] = [
+        [
+          [0, 0],
+          [5, 0],
+          [2.5, 4],
+          [0, 0],
+        ],
+      ]
+      render(
+        <SketchViewer
+          lines={triangle}
+          paperSize={letterSize}
+          scale={1.5}
+        />
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('scale works with overlay', () => {
+      const mockImage = new Image()
+      mockImage.width = 100
+      mockImage.height = 100
+
+      render(
+        <SketchViewer
+          lines={[]}
+          paperSize={letterSize}
+          overlayImage={mockImage}
+          overlayVisible={true}
+          scale={2}
+        />
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+  })
 })
