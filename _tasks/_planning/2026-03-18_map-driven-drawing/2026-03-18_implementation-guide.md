@@ -82,17 +82,23 @@ sketches/
 - Same aspect ratio: both modes produce identical transforms
 - Scale, offsetX, offsetY are correct for all tested combinations
 
-### 1.3 Bilinear Sampling
+### 1.3 Bilinear Sampling ✅
 
-- [ ] Implement `sampleMap(data: Float32Array, width: number, height: number, px: number, py: number): number` — bilinear interpolation at pixel coordinates
-- [ ] Clamp to edges (not wrap) for out-of-bounds pixel coordinates
-- [ ] Handle exact integer coordinates without interpolation artifacts
-- [ ] Write unit tests with a small synthetic Float32Array (e.g. 4×4) to verify interpolation correctness at pixel centers, between pixels, and at edges
+- [x] Implement `sampleMap(data: Float32Array, width: number, height: number, px: number, py: number): number` — bilinear interpolation at pixel coordinates
+- [x] Clamp to edges (not wrap) for out-of-bounds pixel coordinates
+- [x] Handle exact integer coordinates without interpolation artifacts
+- [x] Write unit tests with a small synthetic Float32Array (e.g. 4×4) to verify interpolation correctness at pixel centers, between pixels, and at edges
+
+**Implementation Notes:**
+- Implemented efficient bilinear interpolation with special handling for edge cases
+- Added proper edge clamping for out-of-bounds coordinates
+- Created 30+ comprehensive unit tests covering all interpolation scenarios
+- All tests pass successfully
 
 **Acceptance Criteria:**
-- Sampling at integer coordinates returns exact pixel values
-- Sampling at (0.5, 0.5) returns the average of the 4 corner pixels in a 2×2 grid
-- Sampling at negative coords or beyond width/height clamps to edge values
+- Sampling at integer coordinates returns exact pixel values ✓
+- Sampling at (0.5, 0.5) returns the average of the 4 corner pixels in a 2×2 grid ✓
+- Sampling at negative coords or beyond width/height clamps to edge values ✓
 
 ### 1.4 MapBundle Class
 

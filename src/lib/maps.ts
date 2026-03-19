@@ -142,3 +142,59 @@ export function computeMapTransform(
 
   return { scale, offsetX, offsetY }
 }
+
+export function sampleMap(
+  data: Float32Array,
+  width: number,
+  height: number,
+  px: number,
+  py: number,
+): number {
+  // Clamp coordinates to valid range
+  const x = Math.max(0, Math.min(width - 1, px))
+  const y = Math.max(0, Math.min(height - 1, py))
+
+  // Get integer parts (floor)
+  const x0 = Math.floor(x)
+  const y0 = Math.floor(y)
+
+  // Handle exact right/bottom edge
+  if (x0 === width - 1 && y0 === height - 1) {
+    return data[y0 * width + x0]
+  }
+  if (x0 === width - 1) {
+    // Right edge - only interpolate vertically
+    const y1 = Math.min(y0 + 1, height - 1)
+    const fy = y - y0
+    const v0 = data[y0 * width + x0]
+    const v1 = data[y1 * width + x0]
+    return v0 * (1 - fy) + v1 * fy
+  }
+  if (y0 === height - 1) {
+    // Bottom edge - only interpolate horizontally
+    const x1 = Math.min(x0 + 1, width - 1)
+    const fx = x - x0
+    const v0 = data[y0 * width + x0]
+    const v1 = data[y0 * width + x1]
+    return v0 * (1 - fx) + v1 * fx
+  }
+
+  // Normal case - bilinear interpolation
+  const x1 = x0 + 1
+  const y1 = y0 + 1
+
+  // Get fractional parts
+  const fx = x - x0
+  const fy = y - y0
+
+  // Get the four corner values
+  const v00 = data[y0 * width + x0]
+  const v10 = data[y0 * width + x1]
+  const v01 = data[y1 * width + x0]
+  const v11 = data[y1 * width + x1]
+
+  // Bilinear interpolation
+  const v0 = v00 * (1 - fx) + v10 * fx
+  const v1 = v01 * (1 - fx) + v11 * fx
+  return v0 * (1 - fy) + v1 * fy
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseManifest, computeMapTransform } from '../maps'
+import { parseManifest, computeMapTransform, sampleMap } from '../maps'
 import type { MapManifest } from '@/lib/types'
 
 describe('parseManifest', () => {
@@ -517,6 +517,246 @@ describe('computeMapTransform', () => {
       expect(drawTopLeftInMapY).toBeGreaterThanOrEqual(0)
       expect(drawBottomRightInMapX).toBeLessThanOrEqual(mapW)
       expect(drawBottomRightInMapY).toBeLessThanOrEqual(mapH)
+    })
+  })
+})
+
+describe('sampleMap', () => {
+  // Create a simple 4x4 test grid with predictable values
+  // Values are set to row * 10 + col for easy verification
+  const create4x4Grid = (): Float32Array => {
+    return new Float32Array([
+      0, 1, 2, 3,      // row 0
+      10, 11, 12, 13,  // row 1
+      20, 21, 22, 23,  // row 2
+      30, 31, 32, 33,  // row 3
+    ])
+  }
+
+  describe('exact integer coordinates', () => {
+    it('returns exact pixel values at integer coordinates', () => {
+      const data = create4x4Grid()
+
+      // Test each pixel center
+      expect(sampleMap(data, 4, 4, 0, 0)).toBe(0)
+      expect(sampleMap(data, 4, 4, 1, 0)).toBe(1)
+      expect(sampleMap(data, 4, 4, 2, 0)).toBe(2)
+      expect(sampleMap(data, 4, 4, 3, 0)).toBe(3)
+
+      expect(sampleMap(data, 4, 4, 0, 1)).toBe(10)
+      expect(sampleMap(data, 4, 4, 1, 1)).toBe(11)
+      expect(sampleMap(data, 4, 4, 2, 1)).toBe(12)
+      expect(sampleMap(data, 4, 4, 3, 1)).toBe(13)
+
+      expect(sampleMap(data, 4, 4, 0, 2)).toBe(20)
+      expect(sampleMap(data, 4, 4, 1, 2)).toBe(21)
+      expect(sampleMap(data, 4, 4, 2, 2)).toBe(22)
+      expect(sampleMap(data, 4, 4, 3, 2)).toBe(23)
+
+      expect(sampleMap(data, 4, 4, 0, 3)).toBe(30)
+      expect(sampleMap(data, 4, 4, 1, 3)).toBe(31)
+      expect(sampleMap(data, 4, 4, 2, 3)).toBe(32)
+      expect(sampleMap(data, 4, 4, 3, 3)).toBe(33)
+    })
+  })
+
+  describe('bilinear interpolation', () => {
+    it('interpolates correctly at (0.5, 0.5) between four pixels', () => {
+      const data = create4x4Grid()
+
+      // Sample at (0.5, 0.5) - should average pixels (0,0), (1,0), (0,1), (1,1)
+      // Values are 0, 1, 10, 11
+      // Bilinear: (0+1+10+11)/4 = 5.5
+      const result = sampleMap(data, 4, 4, 0.5, 0.5)
+      expect(result).toBeCloseTo(5.5, 6)
+    })
+
+    it('interpolates correctly at (1.5, 1.5) between four pixels', () => {
+      const data = create4x4Grid()
+
+      // Sample at (1.5, 1.5) - should average pixels (1,1), (2,1), (1,2), (2,2)
+      // Values are 11, 12, 21, 22
+      // Bilinear: (11+12+21+22)/4 = 16.5
+      const result = sampleMap(data, 4, 4, 1.5, 1.5)
+      expect(result).toBeCloseTo(16.5, 6)
+    })
+
+    it('interpolates correctly with non-uniform weights', () => {
+      const data = create4x4Grid()
+
+      // Sample at (0.25, 0.75) - closer to bottom-left
+      // Pixels: (0,0)=0, (1,0)=1, (0,1)=10, (1,1)=11
+      // fx = 0.25, fy = 0.75
+      // Top row: 0 * 0.75 + 1 * 0.25 = 0.25
+      // Bottom row: 10 * 0.75 + 11 * 0.25 = 10.25
+      // Final: 0.25 * 0.25 + 10.25 * 0.75 = 7.75
+      const result = sampleMap(data, 4, 4, 0.25, 0.75)
+      expect(result).toBeCloseTo(7.75, 6)
+    })
+
+    it('interpolates correctly along horizontal edge', () => {
+      const data = create4x4Grid()
+
+      // Sample at (0.5, 0) - between pixels (0,0) and (1,0)
+      // Should be average of 0 and 1 = 0.5
+      const result = sampleMap(data, 4, 4, 0.5, 0)
+      expect(result).toBeCloseTo(0.5, 6)
+    })
+
+    it('interpolates correctly along vertical edge', () => {
+      const data = create4x4Grid()
+
+      // Sample at (0, 0.5) - between pixels (0,0) and (0,1)
+      // Should be average of 0 and 10 = 5
+      const result = sampleMap(data, 4, 4, 0, 0.5)
+      expect(result).toBeCloseTo(5, 6)
+    })
+  })
+
+  describe('edge clamping', () => {
+    it('clamps negative x coordinates to 0', () => {
+      const data = create4x4Grid()
+
+      expect(sampleMap(data, 4, 4, -1, 0)).toBe(0)  // Same as (0, 0)
+      expect(sampleMap(data, 4, 4, -10, 1)).toBe(10)  // Same as (0, 1)
+    })
+
+    it('clamps negative y coordinates to 0', () => {
+      const data = create4x4Grid()
+
+      expect(sampleMap(data, 4, 4, 0, -1)).toBe(0)  // Same as (0, 0)
+      expect(sampleMap(data, 4, 4, 1, -10)).toBe(1)  // Same as (1, 0)
+    })
+
+    it('clamps x coordinates beyond width to width-1', () => {
+      const data = create4x4Grid()
+
+      expect(sampleMap(data, 4, 4, 4, 0)).toBe(3)  // Same as (3, 0)
+      expect(sampleMap(data, 4, 4, 10, 1)).toBe(13)  // Same as (3, 1)
+    })
+
+    it('clamps y coordinates beyond height to height-1', () => {
+      const data = create4x4Grid()
+
+      expect(sampleMap(data, 4, 4, 0, 4)).toBe(30)  // Same as (0, 3)
+      expect(sampleMap(data, 4, 4, 1, 10)).toBe(31)  // Same as (1, 3)
+    })
+
+    it('clamps both x and y when out of bounds', () => {
+      const data = create4x4Grid()
+
+      expect(sampleMap(data, 4, 4, -5, -5)).toBe(0)  // Same as (0, 0)
+      expect(sampleMap(data, 4, 4, 10, 10)).toBe(33)  // Same as (3, 3)
+    })
+  })
+
+  describe('edge interpolation', () => {
+    it('interpolates correctly along right edge', () => {
+      const data = create4x4Grid()
+
+      // Sample at (3, 0.5) - right edge, between rows 0 and 1
+      // Should interpolate between 3 and 13
+      const result = sampleMap(data, 4, 4, 3, 0.5)
+      expect(result).toBeCloseTo(8, 6)
+    })
+
+    it('interpolates correctly along bottom edge', () => {
+      const data = create4x4Grid()
+
+      // Sample at (0.5, 3) - bottom edge, between columns 0 and 1
+      // Should interpolate between 30 and 31
+      const result = sampleMap(data, 4, 4, 0.5, 3)
+      expect(result).toBeCloseTo(30.5, 6)
+    })
+
+    it('returns exact value at bottom-right corner', () => {
+      const data = create4x4Grid()
+
+      // Sample at (3, 3) - exact bottom-right corner
+      expect(sampleMap(data, 4, 4, 3, 3)).toBe(33)
+    })
+
+    it('handles fractional coordinates near right edge', () => {
+      const data = create4x4Grid()
+
+      // Sample at (2.8, 0) - close to right edge but not on it
+      // Should interpolate between pixels (2,0)=2 and (3,0)=3
+      // fx = 0.8, so result = 2 * 0.2 + 3 * 0.8 = 2.8
+      const result = sampleMap(data, 4, 4, 2.8, 0)
+      expect(result).toBeCloseTo(2.8, 6)
+    })
+
+    it('handles fractional coordinates near bottom edge', () => {
+      const data = create4x4Grid()
+
+      // Sample at (0, 2.8) - close to bottom edge but not on it
+      // Should interpolate between pixels (0,2)=20 and (0,3)=30
+      // fy = 0.8, so result = 20 * 0.2 + 30 * 0.8 = 28
+      const result = sampleMap(data, 4, 4, 0, 2.8)
+      expect(result).toBeCloseTo(28, 6)
+    })
+  })
+
+  describe('special cases', () => {
+    it('handles 1x1 grid', () => {
+      const data = new Float32Array([42])
+
+      // Any coordinate should return the single value
+      expect(sampleMap(data, 1, 1, 0, 0)).toBe(42)
+      expect(sampleMap(data, 1, 1, 0.5, 0.5)).toBe(42)
+      expect(sampleMap(data, 1, 1, -1, -1)).toBe(42)
+      expect(sampleMap(data, 1, 1, 10, 10)).toBe(42)
+    })
+
+    it('handles 2x2 grid with uniform values', () => {
+      const data = new Float32Array([5, 5, 5, 5])
+
+      // Any coordinate should return 5
+      expect(sampleMap(data, 2, 2, 0, 0)).toBe(5)
+      expect(sampleMap(data, 2, 2, 0.5, 0.5)).toBe(5)
+      expect(sampleMap(data, 2, 2, 1, 1)).toBe(5)
+      expect(sampleMap(data, 2, 2, 0.25, 0.75)).toBe(5)
+    })
+
+    it('handles gradient data correctly', () => {
+      // Create a horizontal gradient from 0 to 1
+      const data = new Float32Array([
+        0, 0.33, 0.67, 1,
+        0, 0.33, 0.67, 1,
+        0, 0.33, 0.67, 1,
+        0, 0.33, 0.67, 1,
+      ])
+
+      // Sample along the middle row at various x positions
+      expect(sampleMap(data, 4, 4, 0, 1.5)).toBeCloseTo(0, 6)
+      expect(sampleMap(data, 4, 4, 1, 1.5)).toBeCloseTo(0.33, 2)
+      expect(sampleMap(data, 4, 4, 2, 1.5)).toBeCloseTo(0.67, 2)
+      expect(sampleMap(data, 4, 4, 3, 1.5)).toBeCloseTo(1, 6)
+
+      // Sample at intermediate position
+      expect(sampleMap(data, 4, 4, 1.5, 1.5)).toBeCloseTo(0.5, 2)
+    })
+
+    it('preserves exact values at all integer positions in larger grid', () => {
+      const width = 10
+      const height = 10
+      const data = new Float32Array(width * height)
+
+      // Fill with unique values
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          data[y * width + x] = y * 100 + x
+        }
+      }
+
+      // Test sampling at all integer positions
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const expected = y * 100 + x
+          const actual = sampleMap(data, width, height, x, y)
+          expect(actual).toBe(expected)
+        }
+      }
     })
   })
 })
