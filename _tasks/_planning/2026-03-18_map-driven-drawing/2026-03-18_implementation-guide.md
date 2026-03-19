@@ -130,28 +130,43 @@ sketches/
 
 **Rationale:** The UI selector in Phase 3 needs a list of bundles. Building the API and hook first means the selector just consumes a clean interface. This mirrors the existing presets plugin pattern.
 
-### 2.1 Vite Plugin for Maps
+### 2.1 Vite Plugin for Maps ✅
 
-- [ ] Create `src/plugins/vite-plugin-maps.ts` following the presetsPlugin pattern
-- [ ] `GET /__api/maps` — scans `public/maps/` for subdirectories containing `export/manifest.json`, returns `Array<{ name: string, manifest: MapManifest, previewUrl: string }>` where `previewUrl` points to a representative preview PNG (e.g. `density/density_target.png` under `export/previews/`)
-- [ ] Register plugin in `vite.config.ts`
-- [ ] Write unit tests for the handler function (mock filesystem, test with 0, 1, and multiple bundles, test with directory missing manifest)
+- [x] Create `src/plugins/vite-plugin-maps.ts` following the presetsPlugin pattern
+- [x] `GET /__api/maps` — scans `public/maps/` for subdirectories containing `export/manifest.json`, returns `Array<{ name: string, manifest: MapManifest, previewUrl: string }>` where `previewUrl` points to a representative preview PNG (e.g. `density/density_target.png` under `export/previews/`)
+- [x] Register plugin in `vite.config.ts`
+- [x] Write unit tests for the handler function (mock filesystem, test with 0, 1, and multiple bundles, test with directory missing manifest)
 
-**Acceptance Criteria:**
-- `GET /__api/maps` returns `[{ name: "tdog-test-1", manifest: {...}, previewUrl: "/maps/tdog-test-1/export/previews/density/density_target.png" }]`
-- Directories without `export/manifest.json` are silently excluded
-- Empty `public/maps/` returns `[]`
-
-### 2.2 useMaps Hook
-
-- [ ] Create `src/hooks/useMaps.ts` with `useMaps()` hook that fetches `/__api/maps` on mount and returns `{ bundles: MapBundleInfo[], loading: boolean, error: string | null, refresh: () => void }`
-- [ ] `MapBundleInfo` type: `{ name: string, manifest: MapManifest, previewUrl: string }`
-- [ ] Write unit tests following the usePresets test patterns
+**Implementation Notes:**
+- Created `vite-plugin-maps.ts` following the exact pattern of `vite-plugin-presets.ts`
+- Exported `MapBundleInfo` interface for use in the React hook
+- Used relative imports instead of `@/` aliases for better compatibility
+- Created 8 comprehensive unit tests covering all scenarios
+- All tests pass successfully
 
 **Acceptance Criteria:**
-- Hook returns loading=true initially, then resolves to bundle list
-- Network errors surface via the error field
-- `refresh()` re-fetches the bundle list
+- `GET /__api/maps` returns `[{ name: "tdog-test-1", manifest: {...}, previewUrl: "/maps/tdog-test-1/export/previews/density/density_target.png" }]` ✓
+- Directories without `export/manifest.json` are silently excluded ✓
+- Empty `public/maps/` returns `[]` ✓
+
+### 2.2 useMaps Hook ✅
+
+- [x] Create `src/hooks/useMaps.ts` with `useMaps()` hook that fetches `/__api/maps` on mount and returns `{ bundles: MapBundleInfo[], loading: boolean, error: string | null, refresh: () => void }`
+- [x] `MapBundleInfo` type: `{ name: string, manifest: MapManifest, previewUrl: string }`
+- [x] Write unit tests following the usePresets test patterns
+
+**Implementation Notes:**
+- Created `useMaps` hook following the exact pattern of `usePresets`
+- Reused the `MapBundleInfo` type exported from the vite plugin
+- Hook fetches bundles on mount automatically
+- Created 8 comprehensive unit tests covering all scenarios
+- Wrapped state updates in `act()` for proper React testing
+- All tests pass successfully
+
+**Acceptance Criteria:**
+- Hook returns loading=true initially, then resolves to bundle list ✓
+- Network errors surface via the error field ✓
+- `refresh()` re-fetches the bundle list ✓
 
 ## Phase 3: Bundle Selector UI
 
