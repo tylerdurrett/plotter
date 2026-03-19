@@ -173,74 +173,88 @@ function App() {
     scheduleRender(params)
   }, [activeSketch, scheduleRender])
 
-  // Update mapBundle dropdown options dynamically when bundles are loaded
-  useEffect(() => {
-    if (!activeSketch || !activeSketchName) return
-    if (activeSketchName !== '2026-03-18-portrait-1') return
+  // Build resolved params with dynamic mapBundle options injected.
+  // Leva captures options at mount time and ignores source mutations,
+  // so we compute a new params object and change the ControlPanel key
+  // to force a remount when bundles become available.
+  const resolvedParams = (() => {
+    if (!activeSketch) return {}
+    const params = activeSketch.params
+    if (!('mapBundle' in params)) return params
 
-    // Update the dropdown options
-    const bundleOptions = ['none', ...mapBundles.map(b => b.name)]
-
-    // Check if params has mapBundle field
-    if ('mapBundle' in activeSketch.params) {
-      const mapBundleParam = activeSketch.params.mapBundle as { options: string[] }
-      if (mapBundleParam && typeof mapBundleParam === 'object' && 'options' in mapBundleParam) {
-        // Update the options array directly
-        mapBundleParam.options.length = 0
-        mapBundleParam.options.push(...bundleOptions)
-      }
+    const mapBundleParam = params.mapBundle
+    if (!mapBundleParam || typeof mapBundleParam !== 'object' || !('options' in mapBundleParam)) {
+      return params
     }
-  }, [activeSketch, activeSketchName, mapBundles])
 
-  // Load MapBundle when mapBundle parameter changes
+    const bundleOptions = ['none', ...mapBundles.map((b) => b.name)]
+    return {
+      ...params,
+      mapBundle: { ...(mapBundleParam as object), options: bundleOptions },
+    }
+  })()
+
+  // Track which bundle+fitMode combo we've already loaded to avoid re-triggering.
+  const loadedBundleRef = useRef<string | null>(null)
+
+  // Load MapBundle when mapBundle parameter changes.
+  // Uses a tracked key to prevent re-fire loops — scheduleRender and
+  // overlayMapKey are accessed via refs, not as effect dependencies.
+  const selectedMapBundle = pendingParamsRef.current?.mapBundle as string | undefined
+  const selectedFitMode = pendingParamsRef.current?.fitMode as MapFitMode | undefined
   useEffect(() => {
-    const loadMapBundle = async () => {
-      const params = pendingParamsRef.current
-      if (!params || !activeSketch) return
+    const mapBundleName = selectedMapBundle
+    const fitMode = selectedFitMode || 'cover'
 
-      const mapBundleName = params.mapBundle as string
-      const fitMode = (params.fitMode as MapFitMode) || 'cover'
+    // Build a key so we only load once per bundle+fitMode combo
+    const loadKey = `${mapBundleName ?? 'none'}:${fitMode}`
+    if (loadedBundleRef.current === loadKey) return
+    loadedBundleRef.current = loadKey
 
-      // Clear bundle if 'none' is selected
-      if (!mapBundleName || mapBundleName === 'none') {
-        setCurrentMapBundle(undefined)
-        setCurrentBundleInfo(undefined)
-        return
-      }
+    if (!activeSketch) return
 
-      // Find the bundle info
-      const bundleInfo = mapBundles.find(b => b.name === mapBundleName)
-      if (!bundleInfo) {
-        console.warn(`Map bundle "${mapBundleName}" not found`)
-        setCurrentMapBundle(undefined)
-        setCurrentBundleInfo(undefined)
-        return
-      }
+    // Clear bundle if 'none' is selected
+    if (!mapBundleName || mapBundleName === 'none') {
+      setCurrentMapBundle(undefined)
+      setCurrentBundleInfo(undefined)
+      return
+    }
 
-      // Set the bundle info for preview display
-      setCurrentBundleInfo(bundleInfo)
+    // Find the bundle info
+    const bundleInfo = mapBundles.find(b => b.name === mapBundleName)
+    if (!bundleInfo) {
+      console.warn(`Map bundle "${mapBundleName}" not found`)
+      setCurrentMapBundle(undefined)
+      setCurrentBundleInfo(undefined)
+      return
+    }
 
-      // Validate overlay map key - reset to default if not available in new bundle
-      if (bundleInfo.availablePreviews && bundleInfo.availablePreviews.length > 0) {
-        const isValidKey = bundleInfo.availablePreviews.some(p => p.path === overlayMapKey)
-        if (!isValidKey) {
-          // Try to find density_target as default, otherwise use first available
-          const defaultPreview = bundleInfo.availablePreviews.find(p => p.path === 'density/density_target')
-            || bundleInfo.availablePreviews[0]
-          if (defaultPreview) {
-            setOverlayMapKey(defaultPreview.path)
-          }
+    // Set the bundle info for preview display
+    setCurrentBundleInfo(bundleInfo)
+
+    // Validate overlay map key - reset to default if not available in new bundle
+    if (bundleInfo.availablePreviews && bundleInfo.availablePreviews.length > 0) {
+      const isValidKey = bundleInfo.availablePreviews.some(p => p.path === overlayMapKey)
+      if (!isValidKey) {
+        const defaultPreview = bundleInfo.availablePreviews.find(p => p.path === 'density/density_target')
+          || bundleInfo.availablePreviews[0]
+        if (defaultPreview) {
+          setOverlayMapKey(defaultPreview.path)
         }
       }
+    }
 
-      // Load the MapBundle
+    // Load the MapBundle
+    let cancelled = false
+    const loadMapBundle = async () => {
       try {
         setLoadingMapBundle(true)
+        const params = pendingParamsRef.current ?? {}
         const paperSize = (params.paperSize as string) ?? 'letter'
-        const margin = (params.margin as number) ?? 0
+        const paperMargin = (params.margin as number) ?? 0
         const paper = PAPER_SIZES[paperSize] || PAPER_SIZES.letter
-        const drawWidth = paper.width - margin * 2
-        const drawHeight = paper.height - margin * 2
+        const drawWidth = paper.width - paperMargin * 2
+        const drawHeight = paper.height - paperMargin * 2
 
         const bundle = await MapBundle.load(
           `/maps/${mapBundleName}/export`,
@@ -248,6 +262,8 @@ function App() {
           drawHeight,
           fitMode,
         )
+
+        if (cancelled) return
 
         setCurrentMapBundle(bundle)
 
@@ -257,19 +273,46 @@ function App() {
           await activeSketch.setup(ctx)
         }
 
-        // Trigger a re-render with the new bundle
-        scheduleRender(params)
+        // Trigger a re-render with the new bundle.
+        // Read scheduleRender from the ref to avoid depending on it.
+        if (pendingParamsRef.current) {
+          const latestParams = pendingParamsRef.current
+          // Inline a single rAF render instead of calling scheduleRender
+          // to break the dependency chain that caused the blink loop.
+          requestAnimationFrame(() => {
+            if (cancelled) return
+            try {
+              const ctx = buildContext(latestParams, bundle)
+              const result = sketchRef.current?.render(ctx, latestParams)
+              if (result) {
+                setLines(result)
+                setPaperSize((prev) =>
+                  prev.width === ctx.paper.width && prev.height === ctx.paper.height
+                    ? prev
+                    : { width: ctx.paper.width, height: ctx.paper.height },
+                )
+                setMargin(ctx.paper.margin)
+                setRenderError(null)
+              }
+            } catch (err) {
+              setRenderError(err instanceof Error ? err.message : 'Render failed')
+            }
+          })
+        }
       } catch (error) {
+        if (cancelled) return
         console.error('Failed to load map bundle:', error)
         setCurrentMapBundle(undefined)
         setCurrentBundleInfo(undefined)
       } finally {
-        setLoadingMapBundle(false)
+        if (!cancelled) setLoadingMapBundle(false)
       }
     }
 
     loadMapBundle()
-  }, [pendingParamsRef.current?.mapBundle, pendingParamsRef.current?.fitMode, mapBundles, activeSketch, scheduleRender, overlayMapKey, setOverlayMapKey])
+
+    return () => { cancelled = true }
+  }, [selectedMapBundle, selectedFitMode, mapBundles, activeSketch])
 
   // Load overlay image when bundle or map key changes
   useEffect(() => {
@@ -399,8 +442,8 @@ function App() {
       <div className="flex-1 overflow-y-auto">
         <ControlPanel
           ref={controlPanelRef}
-          key={activeSketchName}
-          params={activeSketch.params}
+          key={`${activeSketchName}-${mapBundles.length}`}
+          params={resolvedParams}
           onChange={scheduleRender}
         />
         <ScalePanel
