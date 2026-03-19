@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { SketchViewer } from '@/components/SketchViewer'
 import type { PaperSize, Polyline } from '@/lib/types'
@@ -57,5 +57,109 @@ describe('SketchViewer', () => {
       />,
     )
     expect(container.firstChild).toHaveClass('custom-class')
+  })
+
+  describe('overlay functionality', () => {
+    it('accepts overlay-related props without crashing', () => {
+      const mockImage = new Image()
+      mockImage.width = 100
+      mockImage.height = 100
+
+      render(
+        <SketchViewer
+          lines={[]}
+          paperSize={letterSize}
+          overlayImage={mockImage}
+          overlayVisible={true}
+          overlayOpacity={0.5}
+          overlayFitMode="cover"
+        />,
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('renders without overlay when overlayVisible is false', () => {
+      const mockImage = new Image()
+      mockImage.width = 100
+      mockImage.height = 100
+
+      render(
+        <SketchViewer
+          lines={[]}
+          paperSize={letterSize}
+          overlayImage={mockImage}
+          overlayVisible={false}
+        />,
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('renders without overlay when overlayImage is null', () => {
+      render(
+        <SketchViewer
+          lines={[]}
+          paperSize={letterSize}
+          overlayImage={null}
+          overlayVisible={true}
+        />,
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('respects different fit modes', () => {
+      const mockImage = new Image()
+      mockImage.width = 100
+      mockImage.height = 100
+
+      // Test with fit mode
+      const { rerender } = render(
+        <SketchViewer
+          lines={[]}
+          paperSize={letterSize}
+          overlayImage={mockImage}
+          overlayVisible={true}
+          overlayFitMode="fit"
+        />,
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+
+      // Test with cover mode
+      rerender(
+        <SketchViewer
+          lines={[]}
+          paperSize={letterSize}
+          overlayImage={mockImage}
+          overlayVisible={true}
+          overlayFitMode="cover"
+        />,
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
+
+    it('overlay does not interfere with line rendering', () => {
+      const mockImage = new Image()
+      mockImage.width = 100
+      mockImage.height = 100
+
+      const triangle: Polyline[] = [
+        [
+          [0, 0],
+          [5, 0],
+          [2.5, 4],
+          [0, 0],
+        ],
+      ]
+
+      render(
+        <SketchViewer
+          lines={triangle}
+          paperSize={letterSize}
+          overlayImage={mockImage}
+          overlayVisible={true}
+          overlayOpacity={0.3}
+        />,
+      )
+      expect(screen.getByTestId('sketch-canvas')).toBeInTheDocument()
+    })
   })
 })

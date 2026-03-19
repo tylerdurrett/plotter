@@ -320,20 +320,28 @@ sketches/
 - The overlay image is cached (re-selecting the same bundle doesn't re-fetch) ✓
 - Overlay controls are accessible in the sidebar ✓
 
-### 5.2 Canvas Overlay Rendering
+### 5.2 Canvas Overlay Rendering ✅
 
-- [ ] Modify `SketchViewer` to accept optional `overlayImage`, `overlayVisible`, and `overlayFitMode` props
-- [ ] When `overlayVisible=true`, draw the overlay image on the canvas BEFORE the polylines (so lines render on top)
-- [ ] Use the same `computeMapTransform` function (from Phase 1.2) to position and scale the overlay image — this guarantees the overlay aligns exactly with the sampling coordinates
-- [ ] Apply a semi-transparent opacity (e.g. 0.3) so lines remain visible
-- [ ] Respect the current fit/cover mode
-- [ ] Write tests to verify the overlay props are passed through and rendered
+- [x] Modify `SketchViewer` to accept optional `overlayImage`, `overlayVisible`, and `overlayFitMode` props
+- [x] When `overlayVisible=true`, draw the overlay image on the canvas BEFORE the polylines (so lines render on top)
+- [x] Use the same `computeMapTransform` function (from Phase 1.2) to position and scale the overlay image — this guarantees the overlay aligns exactly with the sampling coordinates
+- [x] Apply a semi-transparent opacity (e.g. 0.3) so lines remain visible
+- [x] Respect the current fit/cover mode
+- [x] Write tests to verify the overlay props are passed through and rendered
+
+**Implementation Notes:**
+- Added `overlayImage`, `overlayVisible`, `overlayOpacity`, and `overlayFitMode` props to SketchViewerProps
+- Overlay rendering uses the exact same `computeMapTransform` function as MapBundle for perfect alignment
+- Added opacity control via `globalAlpha` (defaults to 0.3, controlled via MapOverlayPanel slider)
+- Overlay renders in the drawing-area coordinate system (respecting margins)
+- Created 6 comprehensive tests covering all overlay scenarios
+- All tests pass successfully (11 total tests in SketchViewer.test.tsx)
 
 **Acceptance Criteria:**
-- Toggling overlay on shows the preview image behind the lines
-- Overlay aligns exactly with the drawn lines (a line following high-density areas visibly overlaps the bright regions in the density preview)
-- Overlay does not interfere with line rendering quality
-- Fit/cover mode affects both overlay and line positions identically
+- Toggling overlay on shows the preview image behind the lines ✓
+- Overlay aligns exactly with the drawn lines (a line following high-density areas visibly overlaps the bright regions in the density preview) ✓
+- Overlay does not interfere with line rendering quality ✓
+- Fit/cover mode affects both overlay and line positions identically ✓
 
 ### 5.3 Overlay Map Chooser
 

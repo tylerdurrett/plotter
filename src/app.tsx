@@ -360,6 +360,10 @@ function App() {
           paperSize={paperSize}
           margin={margin}
           highlightMargin={highlightMargin}
+          overlayImage={overlayImage}
+          overlayVisible={overlayVisible}
+          overlayOpacity={overlayOpacity}
+          overlayFitMode={(pendingParamsRef.current?.fitMode as MapFitMode) || 'cover'}
           className="h-full"
         />
       )}

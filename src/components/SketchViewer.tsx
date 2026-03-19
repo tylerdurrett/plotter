@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { PaperSize, Polyline } from '@/lib/types'
+import { computeMapTransform } from '@/lib/maps'
+import type { MapFitMode, PaperSize, Polyline } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface SketchViewerProps {
@@ -10,6 +11,14 @@ interface SketchViewerProps {
   margin?: number
   /** When true, draws margin guide on top of sketch lines in highlight color */
   highlightMargin?: boolean
+  /** Optional overlay image to render behind the lines */
+  overlayImage?: HTMLImageElement | null
+  /** Whether the overlay is visible */
+  overlayVisible?: boolean
+  /** Opacity of the overlay (0-1) */
+  overlayOpacity?: number
+  /** Fit mode for the overlay image */
+  overlayFitMode?: MapFitMode
   className?: string
 }
 
@@ -76,6 +85,10 @@ function SketchViewer({
   paperSize,
   margin = 0,
   highlightMargin = false,
+  overlayImage,
+  overlayVisible = false,
+  overlayOpacity = 0.3,
+  overlayFitMode = 'cover',
   className,
 }: SketchViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -149,6 +162,41 @@ function SketchViewer({
       drawMarginGuide(ctx, mPx, displayW, displayH, COLORS.marginGuide)
     }
 
+    // Draw overlay image if provided and visible
+    if (overlayImage && overlayVisible) {
+      ctx.save()
+      ctx.translate(mPx, mPx)
+
+      // Calculate drawing area dimensions (paper size minus margins)
+      const drawWidth = paperSize.width - margin * 2
+      const drawHeight = paperSize.height - margin * 2
+
+      // Use the same transform calculation as MapBundle for perfect alignment
+      const overlayTransform = computeMapTransform(
+        overlayImage.width,
+        overlayImage.height,
+        drawWidth,
+        drawHeight,
+        overlayFitMode,
+      )
+
+      // Apply opacity
+      ctx.globalAlpha = overlayOpacity
+
+      // Draw the overlay image with the calculated transform
+      ctx.drawImage(
+        overlayImage,
+        overlayTransform.offsetX * scale,
+        overlayTransform.offsetY * scale,
+        overlayImage.width * overlayTransform.scale * scale,
+        overlayImage.height * overlayTransform.scale * scale,
+      )
+
+      // Reset opacity
+      ctx.globalAlpha = 1
+      ctx.restore()
+    }
+
     // Draw polylines — translate by margin since sketches work in drawing-area coordinates
     ctx.save()
     ctx.translate(mPx, mPx)
@@ -174,7 +222,7 @@ function SketchViewer({
     }
 
     ctx.restore()
-  }, [lines, paperSize, margin, highlightMargin, containerSize])
+  }, [lines, paperSize, margin, highlightMargin, containerSize, overlayImage, overlayVisible, overlayOpacity, overlayFitMode])
 
   return (
     <div
