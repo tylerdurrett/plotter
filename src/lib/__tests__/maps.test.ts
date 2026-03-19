@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseManifest } from '../maps'
+import { parseManifest, computeMapTransform } from '../maps'
 import type { MapManifest } from '@/lib/types'
 
 describe('parseManifest', () => {
@@ -259,5 +259,264 @@ describe('parseManifest', () => {
     const result: MapManifest = parseManifest(validManifest)
     expect(result).toBeDefined()
     expect(result.version).toBe(1)
+  })
+})
+
+describe('computeMapTransform', () => {
+  const letterPaper = { width: 21.59, height: 27.94 }
+  const tdogTestMap = { width: 2316, height: 3088 }
+
+  describe('fit mode', () => {
+    it('scales portrait map to fit portrait paper (taller map)', () => {
+      const transform = computeMapTransform(
+        tdogTestMap.width,
+        tdogTestMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'fit',
+      )
+
+      const expectedScale = letterPaper.height / tdogTestMap.height
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetY).toBeCloseTo(0, 6)
+
+      const expectedOffsetX = (letterPaper.width - tdogTestMap.width * expectedScale) / 2
+      expect(transform.offsetX).toBeCloseTo(expectedOffsetX, 6)
+    })
+
+    it('scales landscape map to fit portrait paper (wider map)', () => {
+      const wideMap = { width: 4000, height: 2000 }
+      const transform = computeMapTransform(
+        wideMap.width,
+        wideMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'fit',
+      )
+
+      const expectedScale = letterPaper.width / wideMap.width
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetX).toBeCloseTo(0, 6)
+
+      const expectedOffsetY = (letterPaper.height - wideMap.height * expectedScale) / 2
+      expect(transform.offsetY).toBeCloseTo(expectedOffsetY, 6)
+    })
+
+    it('scales square map to fit portrait paper', () => {
+      const squareMap = { width: 3000, height: 3000 }
+      const transform = computeMapTransform(
+        squareMap.width,
+        squareMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'fit',
+      )
+
+      const expectedScale = letterPaper.width / squareMap.width
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetX).toBeCloseTo(0, 6)
+
+      const expectedOffsetY = (letterPaper.height - squareMap.height * expectedScale) / 2
+      expect(transform.offsetY).toBeCloseTo(expectedOffsetY, 6)
+    })
+
+    it('handles same aspect ratio with no offset', () => {
+      const sameAspectMap = { width: 2159, height: 2794 }
+      const transform = computeMapTransform(
+        sameAspectMap.width,
+        sameAspectMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'fit',
+      )
+
+      const expectedScale = letterPaper.width / sameAspectMap.width
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetX).toBeCloseTo(0, 6)
+      expect(transform.offsetY).toBeCloseTo(0, 6)
+    })
+
+    it('scales tiny map to fit large paper', () => {
+      const tinyMap = { width: 100, height: 100 }
+      const transform = computeMapTransform(
+        tinyMap.width,
+        tinyMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'fit',
+      )
+
+      const expectedScale = letterPaper.width / tinyMap.width
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetX).toBeCloseTo(0, 6)
+
+      const expectedOffsetY = (letterPaper.height - tinyMap.height * expectedScale) / 2
+      expect(transform.offsetY).toBeCloseTo(expectedOffsetY, 6)
+    })
+  })
+
+  describe('cover mode', () => {
+    it('scales portrait map to cover portrait paper (taller map)', () => {
+      const transform = computeMapTransform(
+        tdogTestMap.width,
+        tdogTestMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'cover',
+      )
+
+      const expectedScale = letterPaper.width / tdogTestMap.width
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetX).toBeCloseTo(0, 6)
+
+      const expectedOffsetY = (letterPaper.height - tdogTestMap.height * expectedScale) / 2
+      expect(transform.offsetY).toBeCloseTo(expectedOffsetY, 6)
+      expect(transform.offsetY).toBeLessThan(0)
+    })
+
+    it('scales landscape map to cover portrait paper (wider map)', () => {
+      const wideMap = { width: 4000, height: 2000 }
+      const transform = computeMapTransform(
+        wideMap.width,
+        wideMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'cover',
+      )
+
+      const expectedScale = letterPaper.height / wideMap.height
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetY).toBeCloseTo(0, 6)
+
+      const expectedOffsetX = (letterPaper.width - wideMap.width * expectedScale) / 2
+      expect(transform.offsetX).toBeCloseTo(expectedOffsetX, 6)
+      expect(transform.offsetX).toBeLessThan(0)
+    })
+
+    it('scales square map to cover portrait paper', () => {
+      const squareMap = { width: 3000, height: 3000 }
+      const transform = computeMapTransform(
+        squareMap.width,
+        squareMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'cover',
+      )
+
+      const expectedScale = letterPaper.height / squareMap.height
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetY).toBeCloseTo(0, 6)
+
+      const expectedOffsetX = (letterPaper.width - squareMap.width * expectedScale) / 2
+      expect(transform.offsetX).toBeCloseTo(expectedOffsetX, 6)
+      expect(transform.offsetX).toBeLessThan(0)
+    })
+
+    it('handles same aspect ratio identically to fit mode', () => {
+      const sameAspectMap = { width: 2159, height: 2794 }
+      const fitTransform = computeMapTransform(
+        sameAspectMap.width,
+        sameAspectMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'fit',
+      )
+      const coverTransform = computeMapTransform(
+        sameAspectMap.width,
+        sameAspectMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'cover',
+      )
+
+      expect(coverTransform.scale).toBeCloseTo(fitTransform.scale, 6)
+      expect(coverTransform.offsetX).toBeCloseTo(fitTransform.offsetX, 6)
+      expect(coverTransform.offsetY).toBeCloseTo(fitTransform.offsetY, 6)
+    })
+
+    it('scales tiny map to cover large paper', () => {
+      const tinyMap = { width: 100, height: 100 }
+      const transform = computeMapTransform(
+        tinyMap.width,
+        tinyMap.height,
+        letterPaper.width,
+        letterPaper.height,
+        'cover',
+      )
+
+      const expectedScale = letterPaper.height / tinyMap.height
+      expect(transform.scale).toBeCloseTo(expectedScale, 6)
+      expect(transform.offsetY).toBeCloseTo(0, 6)
+
+      const expectedOffsetX = (letterPaper.width - tinyMap.width * expectedScale) / 2
+      expect(transform.offsetX).toBeCloseTo(expectedOffsetX, 6)
+      expect(transform.offsetX).toBeLessThan(0)
+    })
+  })
+
+  describe('error handling', () => {
+    it('throws error for zero map width', () => {
+      expect(() =>
+        computeMapTransform(0, 1000, letterPaper.width, letterPaper.height, 'fit'),
+      ).toThrow('Invalid map dimensions: 0×1000')
+    })
+
+    it('throws error for negative map height', () => {
+      expect(() =>
+        computeMapTransform(1000, -500, letterPaper.width, letterPaper.height, 'fit'),
+      ).toThrow('Invalid map dimensions: 1000×-500')
+    })
+
+    it('throws error for zero drawing width', () => {
+      expect(() =>
+        computeMapTransform(tdogTestMap.width, tdogTestMap.height, 0, letterPaper.height, 'fit'),
+      ).toThrow('Invalid drawing dimensions: 0×27.94')
+    })
+
+    it('throws error for negative drawing height', () => {
+      expect(() =>
+        computeMapTransform(tdogTestMap.width, tdogTestMap.height, letterPaper.width, -10, 'fit'),
+      ).toThrow('Invalid drawing dimensions: 21.59×-10')
+    })
+  })
+
+  describe('coordinate transformation verification', () => {
+    it('fit mode: map corners map to expected drawing positions', () => {
+      const mapW = 2000
+      const mapH = 3000
+      const drawW = 20
+      const drawH = 30
+
+      const transform = computeMapTransform(mapW, mapH, drawW, drawH, 'fit')
+
+      const topLeftX = 0 * transform.scale + transform.offsetX
+      const topLeftY = 0 * transform.scale + transform.offsetY
+      const bottomRightX = mapW * transform.scale + transform.offsetX
+      const bottomRightY = mapH * transform.scale + transform.offsetY
+
+      expect(topLeftX).toBeGreaterThanOrEqual(0)
+      expect(topLeftY).toBeGreaterThanOrEqual(0)
+      expect(bottomRightX).toBeLessThanOrEqual(drawW)
+      expect(bottomRightY).toBeLessThanOrEqual(drawH)
+    })
+
+    it('cover mode: drawing corners are within map bounds', () => {
+      const mapW = 3000
+      const mapH = 2000
+      const drawW = 20
+      const drawH = 30
+
+      const transform = computeMapTransform(mapW, mapH, drawW, drawH, 'cover')
+
+      const drawTopLeftInMapX = (0 - transform.offsetX) / transform.scale
+      const drawTopLeftInMapY = (0 - transform.offsetY) / transform.scale
+      const drawBottomRightInMapX = (drawW - transform.offsetX) / transform.scale
+      const drawBottomRightInMapY = (drawH - transform.offsetY) / transform.scale
+
+      expect(drawTopLeftInMapX).toBeGreaterThanOrEqual(0)
+      expect(drawTopLeftInMapY).toBeGreaterThanOrEqual(0)
+      expect(drawBottomRightInMapX).toBeLessThanOrEqual(mapW)
+      expect(drawBottomRightInMapY).toBeLessThanOrEqual(mapH)
+    })
   })
 })

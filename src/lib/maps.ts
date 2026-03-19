@@ -1,4 +1,4 @@
-import type { MapManifest, MapInfo, MapKey } from '@/lib/types'
+import type { MapManifest, MapInfo, MapKey, MapFitMode } from '@/lib/types'
 
 const VALID_MAP_KEYS = new Set<MapKey>([
   'density_target',
@@ -89,4 +89,56 @@ export function parseManifest(json: unknown): MapManifest {
     created_at: manifest.created_at as string,
     maps,
   }
+}
+
+export interface MapTransform {
+  scale: number
+  offsetX: number
+  offsetY: number
+}
+
+export function computeMapTransform(
+  mapWidth: number,
+  mapHeight: number,
+  drawWidth: number,
+  drawHeight: number,
+  mode: MapFitMode,
+): MapTransform {
+  if (mapWidth <= 0 || mapHeight <= 0) {
+    throw new Error(`Invalid map dimensions: ${mapWidth}×${mapHeight}`)
+  }
+  if (drawWidth <= 0 || drawHeight <= 0) {
+    throw new Error(`Invalid drawing dimensions: ${drawWidth}×${drawHeight}`)
+  }
+
+  const mapAspect = mapWidth / mapHeight
+  const drawAspect = drawWidth / drawHeight
+
+  let scale: number
+  let offsetX: number
+  let offsetY: number
+
+  if (mode === 'fit') {
+    if (mapAspect > drawAspect) {
+      scale = drawWidth / mapWidth
+      offsetX = 0
+      offsetY = (drawHeight - mapHeight * scale) / 2
+    } else {
+      scale = drawHeight / mapHeight
+      offsetX = (drawWidth - mapWidth * scale) / 2
+      offsetY = 0
+    }
+  } else {
+    if (mapAspect > drawAspect) {
+      scale = drawHeight / mapHeight
+      offsetX = (drawWidth - mapWidth * scale) / 2
+      offsetY = 0
+    } else {
+      scale = drawWidth / mapWidth
+      offsetX = 0
+      offsetY = (drawHeight - mapHeight * scale) / 2
+    }
+  }
+
+  return { scale, offsetX, offsetY }
 }

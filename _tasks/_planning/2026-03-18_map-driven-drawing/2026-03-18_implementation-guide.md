@@ -63,12 +63,18 @@ sketches/
 - Invalid manifests throw descriptive errors
 - Types are exported and usable from sketch code
 
-### 1.2 Coordinate Mapping
+### 1.2 Coordinate Mapping ✅
 
-- [ ] Implement `computeMapTransform(mapWidth, mapHeight, drawWidth, drawHeight, mode: MapFitMode)` in `src/lib/maps.ts` — returns `{ scale, offsetX, offsetY }` that maps drawing-area cm-coords to map pixel-coords
-- [ ] For `fit`: the entire map is visible, centered, with potential blank edges (unmapped regions return a default value)
-- [ ] For `cover`: the map fills the entire drawing area, centered, with potential crop of map edges
-- [ ] Write unit tests for both modes with various aspect ratio combinations (map wider than paper, map taller than paper, same aspect ratio)
+- [x] Implement `computeMapTransform(mapWidth, mapHeight, drawWidth, drawHeight, mode: MapFitMode)` in `src/lib/maps.ts` — returns `{ scale, offsetX, offsetY }` that maps drawing-area cm-coords to map pixel-coords
+- [x] For `fit`: the entire map is visible, centered, with potential blank edges (unmapped regions return a default value)
+- [x] For `cover`: the map fills the entire drawing area, centered, with potential crop of map edges
+- [x] Write unit tests for both modes with various aspect ratio combinations (map wider than paper, map taller than paper, same aspect ratio)
+
+**Implementation Notes:**
+- Added `MapTransform` interface with scale, offsetX, offsetY properties
+- Implemented proper aspect ratio handling for both fit and cover modes
+- Created 16 comprehensive unit tests covering all scenarios
+- All tests pass successfully
 
 **Acceptance Criteria:**
 - `fit` mode: for a 3:4 map on a 21.59×27.94 cm (letter) drawing area, the map maps to the full height with horizontal centering
