@@ -1,4 +1,4 @@
-import type { SketchModule, SketchContext, Polyline, Point, Random } from '@/lib/types'
+import type { SketchModule, SketchContext, Polyline, Point } from '@/lib/types'
 import { PAPER_SIZES } from '@/lib/paper'
 
 const LEFT = 1

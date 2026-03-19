@@ -168,9 +168,9 @@ describe('handleMapsRequest', () => {
     expect(res.result.status).toBe(200)
     const body = JSON.parse(res.result.body)
     expect(body).toHaveLength(3)
-    expect(body.map((b: any) => b.name)).toEqual(['bundle-a', 'bundle-b', 'bundle-c'])
+    expect(body.map((b: { name: string }) => b.name)).toEqual(['bundle-a', 'bundle-b', 'bundle-c'])
     // Each should have availablePreviews (even if empty)
-    body.forEach((bundle: any) => {
+    body.forEach((bundle: { availablePreviews: unknown }) => {
       expect(bundle).toHaveProperty('availablePreviews')
       expect(Array.isArray(bundle.availablePreviews)).toBe(true)
     })
@@ -248,7 +248,6 @@ describe('handleMapsRequest', () => {
   })
 
   it('handles filesystem errors gracefully', async () => {
-    const originalReaddir = fs.readdir
     vi.spyOn(fs, 'readdir').mockRejectedValueOnce(new Error('Filesystem error'))
 
     const res = mockRes()

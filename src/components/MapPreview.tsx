@@ -13,10 +13,13 @@ export function MapPreview({ bundleInfo, loading = false }: MapPreviewProps) {
   // Reset loading state when bundle info changes
   useEffect(() => {
     if (bundleInfo) {
-      setImageLoading(true)
-      setImageError(false)
+      // Use a microtask to avoid synchronous setState
+      Promise.resolve().then(() => {
+        setImageLoading(true)
+        setImageError(false)
+      })
     }
-  }, [bundleInfo?.name])
+  }, [bundleInfo])
 
   const handleImageLoad = () => {
     setImageLoading(false)

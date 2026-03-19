@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import { createSketchContext } from '@/lib/context'
-import type { Polyline } from '@/lib/types'
 
 // Import the sketch module
 import contours from '../../../sketches/2026-03-16-contours/index'

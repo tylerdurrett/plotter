@@ -1,4 +1,4 @@
-import type { SketchModule, SketchContext, Polyline, MapFitMode, Vec2, TraceOptions } from '@/lib/types'
+import type { SketchModule, SketchContext, Polyline, Vec2, TraceOptions } from '@/lib/types'
 import { PAPER_SIZES } from '@/lib/paper'
 import { scatterPoints, traceFlow } from '@/lib/maps'
 
@@ -60,7 +60,7 @@ const sketch: SketchModule = {
   render(ctx: SketchContext, params: Record<string, unknown>): Polyline[] {
     const seed = params.seed as number
     const mapBundle = params.mapBundle as string
-    const fitMode = params.fitMode as MapFitMode
+    // fitMode is handled via ctx.maps which already uses the correct mode
     const seedCount = params.seedCount as number
     const stepSize = params.stepSize as number
     const maxSteps = params.maxSteps as number
