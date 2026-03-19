@@ -1,5 +1,6 @@
-import type { SketchModule, SketchContext, Polyline, MapFitMode } from '@/lib/types'
+import type { SketchModule, SketchContext, Polyline, MapFitMode, Vec2, TraceOptions } from '@/lib/types'
 import { PAPER_SIZES } from '@/lib/paper'
+import { scatterPoints, traceFlow } from '@/lib/maps'
 
 const sketch: SketchModule = {
   params: {
@@ -39,11 +40,16 @@ const sketch: SketchModule = {
           ctx.maps.ensureMap('flow_y'),
         ])
 
-        // Try to load optional maps, but don't fail if they're not available
+        // Try to load optional maps for speed modulation
         try {
           await ctx.maps.ensureMap('flow_speed')
         } catch {
-          // flow_speed might not be available in all bundles
+          // flow_speed might not be available, try complexity as fallback
+          try {
+            await ctx.maps.ensureMap('complexity')
+          } catch {
+            // Neither speed map available, will run without speed modulation
+          }
         }
       } catch (error) {
         console.error('Failed to preload maps:', error)
@@ -70,34 +76,68 @@ const sketch: SketchModule = {
     const random = ctx.createRandom(seed)
     const lines: Polyline[] = []
 
-    // For now, just create a simple test pattern to verify the connection works
-    // The full flow field algorithm will be implemented in Phase 4
     try {
-      // Test that we can sample from the maps
-      const testX = ctx.width / 2
-      const testY = ctx.height / 2
-      const density = ctx.maps.sample('density_target', testX, testY)
-      const [flowX, flowY] = ctx.maps.sampleFlow(testX, testY)
+      // Create density sampler for scattering points
+      const densitySampler = (x: number, y: number): number => {
+        return ctx.maps!.sample('density_target', x, y)
+      }
 
-      console.log(`Map sampling test - density: ${density}, flow: [${flowX}, ${flowY}]`)
+      // Scatter seed points using density-weighted rejection sampling
+      const seedPoints = scatterPoints(
+        random,
+        ctx.width,
+        ctx.height,
+        seedCount,
+        densitySampler,
+        densityInfluence
+      )
 
-      // Create a simple grid of short lines as a placeholder
-      const gridSize = 10
-      for (let r = 0; r < gridSize; r++) {
-        for (let c = 0; c < gridSize; c++) {
-          const x = ((c + 0.5) / gridSize) * ctx.width
-          const y = ((r + 0.5) / gridSize) * ctx.height
+      // Create flow sampler for tracing
+      const flowSampler = (x: number, y: number): Vec2 => {
+        return ctx.maps!.sampleFlow(x, y)
+      }
 
-          // Sample the flow at this position
-          const [fx, fy] = ctx.maps.sampleFlow(x, y)
+      // Create speed sampler (prefer flow_speed, fallback to complexity)
+      let speedSampler: ((x: number, y: number) => number) | undefined
 
-          // Create a short line in the flow direction
-          const length = stepSize * 5
-          const line: Polyline = [
-            [x, y],
-            [x + fx * length, y + fy * length],
-          ]
-          lines.push(line)
+      // Try to use flow_speed first, then complexity as fallback
+      try {
+        // Check if we can sample flow_speed
+        ctx.maps.sample('flow_speed', 0, 0)
+        speedSampler = (x: number, y: number): number => {
+          return ctx.maps!.sample('flow_speed', x, y)
+        }
+      } catch {
+        // flow_speed not available, try complexity
+        try {
+          ctx.maps.sample('complexity', 0, 0)
+          speedSampler = (x: number, y: number): number => {
+            return ctx.maps!.sample('complexity', x, y)
+          }
+        } catch {
+          // Neither speed map available, speedSampler remains undefined
+        }
+      }
+
+      // Trace flow field from each seed point
+      for (const seedPoint of seedPoints) {
+        const traceOptions: TraceOptions = {
+          stepSize,
+          maxSteps,
+          maxDistance,
+          bounds: {
+            width: ctx.width,
+            height: ctx.height,
+          },
+          speedSampler,
+          minSpeed,
+        }
+
+        const polyline = traceFlow(seedPoint, flowSampler, traceOptions)
+
+        // Only add polylines with at least 2 points (actual lines)
+        if (polyline.length >= 2) {
+          lines.push(polyline)
         }
       }
     } catch (error) {

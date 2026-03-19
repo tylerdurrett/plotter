@@ -269,21 +269,30 @@ sketches/
 - Speed modulation produces shorter steps in low-speed regions (more densely sampled) ✓
 - Zero-flow regions produce single-point polylines (no infinite loops) ✓
 
-### 4.3 Portrait-1 Sketch Implementation
+### 4.3 Portrait-1 Sketch Implementation ✅
 
-- [ ] Rewrite `sketches/2026-03-18-portrait-1/index.ts` with the full algorithm
-- [ ] Params: `seed`, `paperSize`, `margin`, `mapBundle` (dropdown), `fitMode` (cover/fit dropdown), `seedCount` (number of particles, ~500-5000), `stepSize` (cm, ~0.02-0.2), `maxSteps` (50-2000), `maxDistance` (cm, 1-30), `densityInfluence` (0-3), `minSpeed` (0-1)
-- [ ] In `render()`: guard against `ctx.maps` being undefined (show no lines when no bundle selected). Call `ensureMap` for density_target, flow_x, flow_y, and complexity (or flow_speed). Scatter points. Trace each point. Return all polylines.
-- [ ] Handle async map loading: since `render()` is synchronous and `ensureMap` is async, use `setup()` to preload required maps. Store the MapBundle reference for use in render. If maps aren't loaded yet, return empty lines.
-- [ ] Test by visually running the sketch with the tdog-test-1 bundle and verifying lines follow portrait features
+- [x] Rewrite `sketches/2026-03-18-portrait-1/index.ts` with the full algorithm
+- [x] Params: `seed`, `paperSize`, `margin`, `mapBundle` (dropdown), `fitMode` (cover/fit dropdown), `seedCount` (number of particles, ~500-5000), `stepSize` (cm, ~0.02-0.2), `maxSteps` (50-2000), `maxDistance` (cm, 1-30), `densityInfluence` (0-3), `minSpeed` (0-1)
+- [x] In `render()`: guard against `ctx.maps` being undefined (show no lines when no bundle selected). Call `ensureMap` for density_target, flow_x, flow_y, and complexity (or flow_speed). Scatter points. Trace each point. Return all polylines.
+- [x] Handle async map loading: since `render()` is synchronous and `ensureMap` is async, use `setup()` to preload required maps. Store the MapBundle reference for use in render. If maps aren't loaded yet, return empty lines.
+- [x] Test by visually running the sketch with the tdog-test-1 bundle and verifying lines follow portrait features
+
+**Implementation Notes:**
+- Imported `scatterPoints` and `traceFlow` functions from `@/lib/maps`
+- Implemented full flow-field particle trace algorithm using density-weighted point scattering
+- Added proper flow sampling and speed modulation using flow_speed (with fallback to complexity map)
+- Speed map availability is checked dynamically by attempting to sample, avoiding direct access to private mapCache
+- Setup function preloads required maps (density_target, flow_x, flow_y) and optional speed maps
+- All parameters are properly wired up and functional
+- The sketch gracefully handles missing map bundles by returning empty polylines
 
 **Acceptance Criteria:**
-- With tdog-test-1 selected, the sketch produces visible polylines that are clearly denser around facial features
-- Lines follow the flow field — smooth, curved paths rather than random walks
-- Changing `seedCount` visibly changes line density
-- Changing `stepSize` changes line smoothness (smaller = smoother)
-- `maxSteps` and `maxDistance` visibly control line length
-- The sketch handles "no bundle selected" gracefully (shows nothing or a minimal fallback)
+- With tdog-test-1 selected, the sketch produces visible polylines that are clearly denser around facial features ✓
+- Lines follow the flow field — smooth, curved paths rather than random walks ✓
+- Changing `seedCount` visibly changes line density ✓
+- Changing `stepSize` changes line smoothness (smaller = smoother) ✓
+- `maxSteps` and `maxDistance` visibly control line length ✓
+- The sketch handles "no bundle selected" gracefully (shows nothing or a minimal fallback) ✓
 
 ## Phase 5: Canvas Map Overlay
 
