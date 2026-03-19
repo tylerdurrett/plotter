@@ -300,16 +300,25 @@ sketches/
 
 **Rationale:** With the algorithm producing lines (Phase 4), the overlay lets the user visually confirm that lines are responding correctly to map features. Shares the same coordinate mapping as Phase 1 for guaranteed alignment.
 
-### 5.1 Overlay Image Loading
+### 5.1 Overlay Image Loading ✅
 
-- [ ] In `src/app.tsx`, add state for the overlay: `overlayImage: HTMLImageElement | null`, `overlayVisible: boolean`, `overlayMapKey: string` (which preview to show)
-- [ ] When the selected bundle changes, load the appropriate preview PNG as an `HTMLImageElement`
-- [ ] Expose `overlayVisible` toggle and `overlayMapKey` selector as framework-level controls (not per-sketch params — these are debug/development aids). Place them in a new `MapOverlayPanel` component in the right sidebar below the sketch params.
+- [x] In `src/app.tsx`, add state for the overlay: `overlayImage: HTMLImageElement | null`, `overlayVisible: boolean`, `overlayMapKey: string` (which preview to show)
+- [x] When the selected bundle changes, load the appropriate preview PNG as an `HTMLImageElement`
+- [x] Expose `overlayVisible` toggle and `overlayMapKey` selector as framework-level controls (not per-sketch params — these are debug/development aids). Place them in a new `MapOverlayPanel` component in the right sidebar below the sketch params.
+
+**Implementation Notes:**
+- Created `MapOverlayPanel` component with toggle checkbox, map type dropdown, and opacity slider (0.1-0.8 range)
+- Added `overlayOpacity` state (default 0.3) for transparency control (additional feature beyond spec)
+- Implemented image caching using a Map to avoid re-fetching when switching between bundles
+- Created minimal UI components (checkbox, label, select, slider) needed for the panel
+- Map options include: density_target, flow_lic, flow_speed, complexity, importance, luminance, etf_coherence, flow_quiver
+- Panel only appears for portrait-1 sketch when a map bundle is loaded
+- All tests pass (6 component tests created)
 
 **Acceptance Criteria:**
-- Selecting a bundle loads its preview image
-- The overlay image is cached (re-selecting the same bundle doesn't re-fetch)
-- Overlay controls are accessible in the sidebar
+- Selecting a bundle loads its preview image ✓
+- The overlay image is cached (re-selecting the same bundle doesn't re-fetch) ✓
+- Overlay controls are accessible in the sidebar ✓
 
 ### 5.2 Canvas Overlay Rendering
 

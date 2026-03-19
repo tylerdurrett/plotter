@@ -6,6 +6,7 @@ import {
 } from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ExportPanel } from '@/components/ExportPanel'
+import { MapOverlayPanel, MAP_OPTIONS } from '@/components/MapOverlayPanel'
 import { MapPreview } from '@/components/MapPreview'
 import { PanelLayout } from '@/components/PanelLayout'
 import { PresetPanel } from '@/components/PresetPanel'
@@ -53,6 +54,13 @@ function App() {
   const [currentMapBundle, setCurrentMapBundle] = useState<MapBundle | undefined>()
   const [currentBundleInfo, setCurrentBundleInfo] = useState<MapBundleInfo | undefined>()
   const [loadingMapBundle, setLoadingMapBundle] = useState(false)
+
+  // Overlay state
+  const [overlayImage, setOverlayImage] = useState<HTMLImageElement | null>(null)
+  const [overlayVisible, setOverlayVisible] = useState(false)
+  const [overlayMapKey, setOverlayMapKey] = useState('density_target')
+  const [overlayOpacity, setOverlayOpacity] = useState(0.3)
+  const overlayImageCache = useRef<Map<string, HTMLImageElement>>(new Map())
 
   // Render output state — updated imperatively from the rAF loop
   const [lines, setLines] = useState<Polyline[]>([])
@@ -246,6 +254,52 @@ function App() {
     loadMapBundle()
   }, [pendingParamsRef.current?.mapBundle, pendingParamsRef.current?.fitMode, mapBundles, activeSketch, scheduleRender])
 
+  // Load overlay image when bundle or map key changes
+  useEffect(() => {
+    const loadOverlayImage = async () => {
+      if (!currentBundleInfo || !overlayMapKey) {
+        setOverlayImage(null)
+        return
+      }
+
+      // Build cache key
+      const cacheKey = `${currentBundleInfo.name}-${overlayMapKey}`
+
+      // Check cache first
+      const cached = overlayImageCache.current.get(cacheKey)
+      if (cached) {
+        setOverlayImage(cached)
+        return
+      }
+
+      // Find the map option to get the category
+      const mapOption = MAP_OPTIONS.find(opt => opt.value === overlayMapKey)
+      if (!mapOption) {
+        console.warn(`Unknown overlay map key: ${overlayMapKey}`)
+        setOverlayImage(null)
+        return
+      }
+
+      // Construct the preview URL
+      const previewUrl = `/maps/${currentBundleInfo.name}/export/previews/${mapOption.category}/${overlayMapKey}.png`
+
+      // Load the image
+      const img = new Image()
+      img.onload = () => {
+        // Cache the loaded image
+        overlayImageCache.current.set(cacheKey, img)
+        setOverlayImage(img)
+      }
+      img.onerror = () => {
+        console.error(`Failed to load overlay image: ${previewUrl}`)
+        setOverlayImage(null)
+      }
+      img.src = previewUrl
+    }
+
+    loadOverlayImage()
+  }, [currentBundleInfo, overlayMapKey])
+
   const handleRandomizeSeed = useCallback(() => {
     const newSeed = Math.floor(Math.random() * 10000)
     controlPanelRef.current?.setValues({ seed: newSeed })
@@ -335,10 +389,23 @@ function App() {
           onChange={scheduleRender}
         />
         {activeSketchName === '2026-03-18-portrait-1' && (
-          <MapPreview
-            bundleInfo={currentBundleInfo}
-            loading={loadingMapBundle}
-          />
+          <>
+            <MapPreview
+              bundleInfo={currentBundleInfo}
+              loading={loadingMapBundle}
+            />
+            {currentBundleInfo && (
+              <MapOverlayPanel
+                visible={overlayVisible}
+                onVisibilityChange={setOverlayVisible}
+                mapKey={overlayMapKey}
+                onMapKeyChange={setOverlayMapKey}
+                opacity={overlayOpacity}
+                onOpacityChange={setOverlayOpacity}
+                bundleInfo={currentBundleInfo}
+              />
+            )}
+          </>
         )}
       </div>
       <Separator />
