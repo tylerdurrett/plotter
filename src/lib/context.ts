@@ -1,4 +1,5 @@
 import type { PaperSize, SketchContext } from '@/lib/types'
+import type { MapBundle } from '@/lib/maps'
 import { getPaperSize, type Orientation } from '@/lib/paper'
 import { createRandom } from '@/lib/random'
 
@@ -10,6 +11,7 @@ export function createSketchContext(
   paperSize: string | PaperSize,
   orientation?: Orientation,
   margin: number = 0,
+  maps?: MapBundle,
 ): SketchContext {
   const name = typeof paperSize === 'string' ? paperSize : 'custom'
   const resolved = getPaperSize(paperSize, orientation)
@@ -34,5 +36,6 @@ export function createSketchContext(
       name,
       margin,
     },
+    maps,
   }
 }

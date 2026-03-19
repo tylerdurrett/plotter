@@ -174,21 +174,31 @@ sketches/
 
 **Rationale:** With the API (Phase 2) and loading library (Phase 1) in place, this phase wires them into the parameter panel. Once complete, the portrait-1 sketch can reference the selected bundle.
 
-### 3.1 Map Selector in Sketch Params
+### 3.1 Map Selector in Sketch Params ✅
 
-- [ ] In `sketches/2026-03-18-portrait-1/index.ts`, add a `mapBundle` dropdown param. Initially populate with a placeholder — the actual options come from the API
-- [ ] In `src/app.tsx`, add state for the current `MapBundle` instance (loaded from the selected bundle name)
-- [ ] When `mapBundle` param changes, load the new bundle via `MapBundle.load()` and pass it to the sketch's render function via a new optional field on `SketchContext` (e.g. `ctx.maps?: MapBundle`)
-- [ ] Add `maps?: MapBundle` to the `SketchContext` interface in `src/lib/types.ts`
-- [ ] Update `createSketchContext` to optionally accept and attach a MapBundle
-- [ ] Wire the `useMaps` hook in `App.tsx` to populate the dropdown options dynamically — use a Vite dev-server fetch on sketch load to get bundle names, and inject them as Leva dropdown options
-- [ ] Ensure re-selecting the same bundle doesn't re-fetch .bin files (MapBundle caching)
+- [x] In `sketches/2026-03-18-portrait-1/index.ts`, add a `mapBundle` dropdown param. Initially populate with a placeholder — the actual options come from the API
+- [x] In `src/app.tsx`, add state for the current `MapBundle` instance (loaded from the selected bundle name)
+- [x] When `mapBundle` param changes, load the new bundle via `MapBundle.load()` and pass it to the sketch's render function via a new optional field on `SketchContext` (e.g. `ctx.maps?: MapBundle`)
+- [x] Add `maps?: MapBundle` to the `SketchContext` interface in `src/lib/types.ts`
+- [x] Update `createSketchContext` to optionally accept and attach a MapBundle
+- [x] Wire the `useMaps` hook in `App.tsx` to populate the dropdown options dynamically — use a Vite dev-server fetch on sketch load to get bundle names, and inject them as Leva dropdown options
+- [x] Ensure re-selecting the same bundle doesn't re-fetch .bin files (MapBundle caching)
+
+**Implementation Notes:**
+- Added `maps?: MapBundle` as optional field in SketchContext interface
+- Modified `createSketchContext` to accept optional MapBundle parameter
+- Added full map-driven drawing parameters to portrait-1 sketch (seedCount, stepSize, maxSteps, maxDistance, densityInfluence, minSpeed)
+- Implemented async setup() function in portrait-1 to preload required maps
+- Added placeholder rendering that samples flow field to verify connection works
+- Wired up dynamic dropdown population using useMaps hook in app.tsx
+- Added effects to handle map bundle loading when mapBundle or fitMode parameters change
+- MapBundle caching works automatically through the MapBundle class's internal cache
 
 **Acceptance Criteria:**
-- The portrait-1 sketch shows a "mapBundle" dropdown with "tdog-test-1" as an option
-- Selecting a bundle loads its manifest (visible via console.log or similar during dev)
-- The `ctx.maps` field is available inside render() and correctly samples map values
-- Switching between bundles updates the loaded maps without stale data
+- The portrait-1 sketch shows a "mapBundle" dropdown with "tdog-test-1" as an option ✓
+- Selecting a bundle loads its manifest (visible via console.log or similar during dev) ✓
+- The `ctx.maps` field is available inside render() and correctly samples map values ✓
+- Switching between bundles updates the loaded maps without stale data ✓
 
 ### 3.2 Preview Thumbnail
 

@@ -1,3 +1,5 @@
+import type { MapBundle } from './maps'
+
 /** 2D vector / point tuple */
 export type Vec2 = [number, number]
 
@@ -58,6 +60,8 @@ export interface SketchContext {
     name: string
     margin: number
   }
+  /** Optional map bundle for map-driven drawing */
+  maps?: MapBundle
 }
 
 /** Sketch module contract — every sketch file must satisfy this interface */

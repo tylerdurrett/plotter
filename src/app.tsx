@@ -14,17 +14,22 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { SketchViewer } from '@/components/SketchViewer'
 import { useLevaParamHover } from '@/hooks/useLevaParamHover'
+import { useMaps } from '@/hooks/useMaps'
 import { useSketchLoader } from '@/hooks/useSketchLoader'
 import { createSketchContext } from '@/lib/context'
+import { MapBundle } from '@/lib/maps'
 import { extractParamValues } from '@/lib/params'
 import { PAPER_SIZES } from '@/lib/paper'
-import type { PaperSize, Polyline, SketchModule } from '@/lib/types'
+import type { PaperSize, Polyline, SketchModule, MapFitMode } from '@/lib/types'
 
 /** Build a SketchContext from explicit param values */
-function buildContext(paramValues: Record<string, unknown>) {
+function buildContext(
+  paramValues: Record<string, unknown>,
+  mapBundle?: MapBundle,
+) {
   const paperSize = (paramValues.paperSize as string) ?? 'letter'
   const margin = (paramValues.margin as number) ?? 0
-  return createSketchContext(paperSize, undefined, margin)
+  return createSketchContext(paperSize, undefined, margin, mapBundle)
 }
 
 function App() {
@@ -40,6 +45,11 @@ function App() {
   const controlPanelRef = useRef<ControlPanelHandle>(null)
   // Re-attach when sketch changes since ControlPanel remounts (new Leva DOM)
   const highlightMargin = useLevaParamHover('margin', activeSketchName)
+
+  // Map bundle state
+  const { bundles: mapBundles } = useMaps()
+  const [currentMapBundle, setCurrentMapBundle] = useState<MapBundle | undefined>()
+  const [loadingMapBundle, setLoadingMapBundle] = useState(false)
 
   // Render output state — updated imperatively from the rAF loop
   const [lines, setLines] = useState<Polyline[]>([])
@@ -65,7 +75,7 @@ function App() {
     if (!params || !sketch) return
 
     try {
-      const ctx = buildContext(params)
+      const ctx = buildContext(params, currentMapBundle)
       const result = sketch.render(ctx, params)
       setLines(result)
       // Avoid new object reference when dimensions haven't changed,
@@ -80,7 +90,7 @@ function App() {
     } catch (err) {
       setRenderError(err instanceof Error ? err.message : 'Render failed')
     }
-  }, [])
+  }, [currentMapBundle])
 
   const scheduleRender = useCallback(
     (paramValues: Record<string, unknown>) => {
@@ -116,13 +126,13 @@ function App() {
     const paramValues = extractParamValues(activeSketch.params)
 
     if (activeSketch.setup) {
-      const ctx = buildContext(paramValues)
+      const ctx = buildContext(paramValues, currentMapBundle)
       activeSketch.setup(ctx)
     }
 
     // Initial render with default param values
     scheduleRender(paramValues)
-  }, [activeSketch, activeSketchName, scheduleRender])
+  }, [activeSketch, activeSketchName, scheduleRender, currentMapBundle])
 
   // Re-render when sketch code is hot-updated (activeSketch reference
   // changes but name stays the same). The setup guard above correctly
@@ -147,6 +157,85 @@ function App() {
       pendingParamsRef.current ?? extractParamValues(activeSketch.params)
     scheduleRender(params)
   }, [activeSketch, scheduleRender])
+
+  // Update mapBundle dropdown options dynamically when bundles are loaded
+  useEffect(() => {
+    if (!activeSketch || !activeSketchName) return
+    if (activeSketchName !== '2026-03-18-portrait-1') return
+
+    // Update the dropdown options
+    const bundleOptions = ['none', ...mapBundles.map(b => b.name)]
+
+    // Check if params has mapBundle field
+    if ('mapBundle' in activeSketch.params) {
+      const mapBundleParam = activeSketch.params.mapBundle as any
+      if (mapBundleParam && typeof mapBundleParam === 'object' && 'options' in mapBundleParam) {
+        // Update the options array directly
+        mapBundleParam.options.length = 0
+        mapBundleParam.options.push(...bundleOptions)
+      }
+    }
+  }, [activeSketch, activeSketchName, mapBundles])
+
+  // Load MapBundle when mapBundle parameter changes
+  useEffect(() => {
+    const loadMapBundle = async () => {
+      const params = pendingParamsRef.current
+      if (!params || !activeSketch) return
+
+      const mapBundleName = params.mapBundle as string
+      const fitMode = (params.fitMode as MapFitMode) || 'cover'
+
+      // Clear bundle if 'none' is selected
+      if (!mapBundleName || mapBundleName === 'none') {
+        setCurrentMapBundle(undefined)
+        return
+      }
+
+      // Find the bundle info
+      const bundleInfo = mapBundles.find(b => b.name === mapBundleName)
+      if (!bundleInfo) {
+        console.warn(`Map bundle "${mapBundleName}" not found`)
+        setCurrentMapBundle(undefined)
+        return
+      }
+
+      // Load the MapBundle
+      try {
+        setLoadingMapBundle(true)
+        const paperSize = (params.paperSize as string) ?? 'letter'
+        const margin = (params.margin as number) ?? 0
+        const paper = PAPER_SIZES[paperSize] || PAPER_SIZES.letter
+        const drawWidth = paper.width - margin * 2
+        const drawHeight = paper.height - margin * 2
+
+        const bundle = await MapBundle.load(
+          `/maps/${mapBundleName}/export`,
+          drawWidth,
+          drawHeight,
+          fitMode,
+        )
+
+        setCurrentMapBundle(bundle)
+
+        // Re-run setup if the sketch has one
+        if (activeSketch.setup) {
+          const ctx = buildContext(params, bundle)
+          await activeSketch.setup(ctx)
+        }
+
+        // Trigger a re-render with the new bundle
+        scheduleRender(params)
+      } catch (error) {
+        console.error('Failed to load map bundle:', error)
+        setCurrentMapBundle(undefined)
+      } finally {
+        setLoadingMapBundle(false)
+      }
+    }
+
+    loadMapBundle()
+  }, [pendingParamsRef.current?.mapBundle, pendingParamsRef.current?.fitMode, mapBundles, activeSketch, scheduleRender])
 
   const handleRandomizeSeed = useCallback(() => {
     const newSeed = Math.floor(Math.random() * 10000)
