@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { parseManifest, computeMapTransform, sampleMap, MapBundle } from '../maps'
-import type { MapManifest, MapFitMode } from '@/lib/types'
+import { parseManifest, computeMapTransform, sampleMap, MapBundle, scatterPoints } from '../maps'
+import type { MapManifest } from '@/lib/types'
+import { createRandom } from '../random'
 
 describe('parseManifest', () => {
   const validManifest = {
@@ -1264,6 +1265,364 @@ describe('MapBundle', () => {
       // Re-ensuring should not cause additional fetches
       await bundle.ensureMap('density_target')
       expect(fetchMock).toHaveBeenCalledTimes(5) // manifest + 4 maps, no extras
+    })
+  })
+})
+
+describe('scatterPoints', () => {
+  describe('uniform distribution with constant density', () => {
+    it('returns approximately uniform distribution with constant density = 1.0', () => {
+      const random = createRandom(42)
+      const width = 10
+      const height = 10
+      const count = 100
+      const densitySampler = () => 1.0 // Constant density everywhere
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      // Should return exactly the requested count
+      expect(points).toHaveLength(count)
+
+      // All points should be within bounds
+      points.forEach(([x, y]) => {
+        expect(x).toBeGreaterThanOrEqual(0)
+        expect(x).toBeLessThanOrEqual(width)
+        expect(y).toBeGreaterThanOrEqual(0)
+        expect(y).toBeLessThanOrEqual(height)
+      })
+
+      // Check distribution is roughly uniform by dividing into quadrants
+      const quadrants = [0, 0, 0, 0] // TL, TR, BL, BR
+      points.forEach(([x, y]) => {
+        const qx = x < width / 2 ? 0 : 1
+        const qy = y < height / 2 ? 0 : 2
+        quadrants[qx + qy]++
+      })
+
+      // Each quadrant should have roughly 25% of points (with some tolerance)
+      quadrants.forEach(count => {
+        expect(count).toBeGreaterThan(15) // At least 15%
+        expect(count).toBeLessThan(35) // At most 35%
+      })
+    })
+
+    it('returns uniform distribution when influence = 0 regardless of density', () => {
+      const random = createRandom(123)
+      const width = 10
+      const height = 10
+      const count = 100
+      // Non-uniform density that should be ignored
+      const densitySampler = (x: number) => x < width / 2 ? 0.1 : 0.9
+      const influence = 0 // Should ignore density
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      expect(points).toHaveLength(count)
+
+      // Count points on each half
+      let leftCount = 0
+      let rightCount = 0
+      points.forEach(([x]) => {
+        if (x < width / 2) leftCount++
+        else rightCount++
+      })
+
+      // Should be roughly 50/50 despite different densities
+      expect(leftCount).toBeGreaterThan(35)
+      expect(leftCount).toBeLessThan(65)
+      expect(rightCount).toBeGreaterThan(35)
+      expect(rightCount).toBeLessThan(65)
+    })
+  })
+
+  describe('density-weighted distribution', () => {
+    it('concentrates points in high-density regions with left/right split', () => {
+      const random = createRandom(456)
+      const width = 10
+      const height = 10
+      const count = 100
+      // Left half has density 1.0, right half has density 0.0
+      const densitySampler = (x: number) => x < width / 2 ? 1.0 : 0.0
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      // Count points on each half
+      let leftCount = 0
+      let rightCount = 0
+      points.forEach(([x]) => {
+        if (x < width / 2) leftCount++
+        else rightCount++
+      })
+
+      // Nearly all points should be on the left (high density)
+      expect(leftCount).toBe(count)
+      expect(rightCount).toBe(0)
+    })
+
+    it('creates gradient distribution with linear density', () => {
+      const random = createRandom(789)
+      const width = 10
+      const height = 10
+      const count = 200
+      // Linear gradient from left (0) to right (1)
+      const densitySampler = (x: number) => x / width
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      // Divide into thirds and count
+      let leftThird = 0
+      let middleThird = 0
+      let rightThird = 0
+      points.forEach(([x]) => {
+        if (x < width / 3) leftThird++
+        else if (x < 2 * width / 3) middleThird++
+        else rightThird++
+      })
+
+      // Should have increasing counts from left to right
+      expect(leftThird).toBeLessThan(middleThird)
+      expect(middleThird).toBeLessThan(rightThird)
+    })
+
+    it('concentrates points more strongly with higher influence', () => {
+      const random1 = createRandom(111)
+      const random2 = createRandom(111) // Same seed for fair comparison
+      const width = 10
+      const height = 10
+      const count = 100
+      // Center has high density, edges have low density
+      const densitySampler = (x: number, y: number) => {
+        const dx = Math.abs(x - width / 2) / (width / 2)
+        const dy = Math.abs(y - height / 2) / (height / 2)
+        const dist = Math.max(dx, dy)
+        return Math.max(0, 1 - dist)
+      }
+
+      // Generate with influence = 1
+      const points1 = scatterPoints(random1, width, height, count, densitySampler, 1)
+
+      // Generate with influence = 3 (stronger concentration)
+      const points3 = scatterPoints(random2, width, height, count, densitySampler, 3)
+
+      // Count points near center (within 25% of center)
+      const centerRadius = Math.min(width, height) * 0.25
+      const countNearCenter = (pts: Array<[number, number]>) => {
+        return pts.filter(([x, y]) => {
+          const dx = x - width / 2
+          const dy = y - height / 2
+          return Math.sqrt(dx * dx + dy * dy) < centerRadius
+        }).length
+      }
+
+      const centerCount1 = countNearCenter(points1)
+      const centerCount3 = countNearCenter(points3)
+
+      // Higher influence should have more points near center
+      expect(centerCount3).toBeGreaterThan(centerCount1)
+    })
+  })
+
+  describe('edge cases and special conditions', () => {
+    it('handles zero density everywhere gracefully', () => {
+      const random = createRandom(222)
+      const width = 10
+      const height = 10
+      const count = 50
+      const densitySampler = () => 0.0 // Zero density everywhere
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      // Should return empty or very few points since density is 0
+      expect(points.length).toBeLessThanOrEqual(count)
+      // With zero density and rejection sampling, we expect 0 points
+      expect(points.length).toBe(0)
+    })
+
+    it('handles very sparse density regions', () => {
+      const random = createRandom(333)
+      const width = 10
+      const height = 10
+      const count = 20
+      // Very small density in a tiny region
+      const densitySampler = (x: number, y: number) => {
+        if (x > 4.5 && x < 5.5 && y > 4.5 && y < 5.5) return 0.01
+        return 0
+      }
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      // May return fewer points than requested due to sparse density
+      expect(points.length).toBeLessThanOrEqual(count)
+
+      // All returned points should be in the small high-density region
+      points.forEach(([x, y]) => {
+        if (points.length > 0) {
+          // If we got any points, they should be near the center
+          expect(Math.abs(x - 5)).toBeLessThan(2)
+          expect(Math.abs(y - 5)).toBeLessThan(2)
+        }
+      })
+    })
+
+    it('clamps negative density values to 0', () => {
+      const random = createRandom(444)
+      const width = 10
+      const height = 10
+      const count = 50
+      // Invalid negative density
+      const densitySampler = () => -0.5
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      // Should treat negative as 0, so no points
+      expect(points.length).toBe(0)
+    })
+
+    it('clamps density values above 1 to 1', () => {
+      const random = createRandom(555)
+      const width = 10
+      const height = 10
+      const count = 50
+      // Invalid density > 1
+      const densitySampler = () => 2.5
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      // Should treat as 1.0, so all points accepted
+      expect(points).toHaveLength(count)
+    })
+
+    it('returns exact count when possible', () => {
+      const random = createRandom(666)
+      const width = 10
+      const height = 10
+      const count = 37 // Unusual number
+      const densitySampler = () => 1.0
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      // Should return exactly the requested count
+      expect(points).toHaveLength(count)
+    })
+
+    it('handles very small areas', () => {
+      const random = createRandom(777)
+      const width = 0.1
+      const height = 0.1
+      const count = 10
+      const densitySampler = () => 1.0
+      const influence = 1
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      expect(points).toHaveLength(count)
+
+      // All points should be within the tiny bounds
+      points.forEach(([x, y]) => {
+        expect(x).toBeGreaterThanOrEqual(0)
+        expect(x).toBeLessThanOrEqual(width)
+        expect(y).toBeGreaterThanOrEqual(0)
+        expect(y).toBeLessThanOrEqual(height)
+      })
+    })
+
+    it('handles large point counts efficiently', () => {
+      const random = createRandom(888)
+      const width = 100
+      const height = 100
+      const count = 1000
+      const densitySampler = () => 0.8
+      const influence = 1
+
+      const start = Date.now()
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+      const duration = Date.now() - start
+
+      // Should complete quickly even with many points
+      expect(duration).toBeLessThan(100) // Less than 100ms
+
+      // Should return the requested count (with high density, this should be achievable)
+      expect(points.length).toBeGreaterThan(count * 0.9) // At least 90% of requested
+    })
+  })
+
+  describe('influence parameter behavior', () => {
+    it('influence = 0 always produces uniform distribution', () => {
+      const random = createRandom(999)
+      const width = 10
+      const height = 10
+      const count = 100
+      // Complex density pattern that should be completely ignored
+      const densitySampler = (x: number, y: number) => {
+        return Math.sin(x) * Math.cos(y) * 0.5 + 0.5
+      }
+      const influence = 0
+
+      const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+      expect(points).toHaveLength(count)
+
+      // Check uniformity by grid cells
+      const gridSize = 4
+      const grid = Array(gridSize * gridSize).fill(0)
+      points.forEach(([x, y]) => {
+        const gx = Math.floor(x / width * gridSize)
+        const gy = Math.floor(y / height * gridSize)
+        const idx = gy * gridSize + gx
+        if (idx >= 0 && idx < grid.length) grid[idx]++
+      })
+
+      // Each cell should have roughly equal counts
+      const expectedPerCell = count / (gridSize * gridSize)
+      grid.forEach(cellCount => {
+        expect(cellCount).toBeGreaterThan(expectedPerCell * 0.3)
+        expect(cellCount).toBeLessThan(expectedPerCell * 2.0)
+      })
+    })
+
+    it('higher influence creates stronger concentration', () => {
+      const width = 10
+      const height = 10
+      const count = 100
+      // Radial density: high at center, low at edges
+      const densitySampler = (x: number, y: number) => {
+        const dx = (x - width / 2) / (width / 2)
+        const dy = (y - height / 2) / (height / 2)
+        const r = Math.sqrt(dx * dx + dy * dy)
+        return Math.max(0, 1 - r)
+      }
+
+      // Test with different influence values
+      const influences = [0.5, 1, 2, 4]
+      const centerCounts: number[] = []
+
+      influences.forEach(influence => {
+        const random = createRandom(1234) // Same seed for comparison
+        const points = scatterPoints(random, width, height, count, densitySampler, influence)
+
+        // Count points within center region (25% radius)
+        const centerRadius = Math.min(width, height) * 0.25
+        const centerCount = points.filter(([x, y]) => {
+          const dx = x - width / 2
+          const dy = y - height / 2
+          return Math.sqrt(dx * dx + dy * dy) < centerRadius
+        }).length
+
+        centerCounts.push(centerCount)
+      })
+
+      // Each influence level should have more center concentration than the previous
+      for (let i = 1; i < centerCounts.length; i++) {
+        expect(centerCounts[i]).toBeGreaterThanOrEqual(centerCounts[i - 1])
+      }
     })
   })
 })

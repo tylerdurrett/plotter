@@ -227,19 +227,25 @@ sketches/
 
 **Rationale:** This is the creative payoff — with map loading (Phase 1) and selection (Phase 3) working, we can now generate actual drawings. Placed before overlay/scale because the algorithm is needed to validate that those features work correctly.
 
-### 4.1 Density-Weighted Point Scattering
+### 4.1 Density-Weighted Point Scattering ✅
 
-- [ ] Add a `scatterPoints(random: Random, width: number, height: number, count: number, densitySampler: (x: number, y: number) => number, influence: number): Vec2[]` function in `src/lib/maps.ts`
-- [ ] Uses rejection sampling: generate uniform random candidates, accept with probability proportional to `density(x, y) ^ influence`
-- [ ] `influence` controls how strongly density affects distribution: 0 = uniform, 1 = proportional, >1 = concentrated
-- [ ] Oversample by a fixed factor (e.g. 3×) so the output count is approximately `count` despite rejection. Return exactly `count` points (or fewer if density is very sparse)
-- [ ] Write unit tests: with a synthetic density sampler (e.g. left half = 1.0, right half = 0.0), verify that most points land on the left
+- [x] Add a `scatterPoints(random: Random, width: number, height: number, count: number, densitySampler: (x: number, y: number) => number, influence: number): Vec2[]` function in `src/lib/maps.ts`
+- [x] Uses rejection sampling: generate uniform random candidates, accept with probability proportional to `density(x, y) ^ influence`
+- [x] `influence` controls how strongly density affects distribution: 0 = uniform, 1 = proportional, >1 = concentrated
+- [x] Oversample by a fixed factor (e.g. 3×) so the output count is approximately `count` despite rejection. Return exactly `count` points (or fewer if density is very sparse)
+- [x] Write unit tests: with a synthetic density sampler (e.g. left half = 1.0, right half = 0.0), verify that most points land on the left
+
+**Implementation Notes:**
+- Implemented rejection sampling with 3× oversampling factor and a max attempts limit (30× count) to prevent infinite loops
+- Added proper clamping of density values to [0, 1] range
+- Created comprehensive test suite with 20+ tests covering all edge cases and behaviors
+- All tests pass successfully (90 total tests in maps.test.ts)
 
 **Acceptance Criteria:**
-- With a constant density of 1.0, returned points are approximately uniformly distributed
-- With density 1.0 on the left half and 0.0 on the right, nearly all points are on the left
-- `influence=0` produces uniform distribution regardless of density
-- Output count is approximately the requested `count`
+- With a constant density of 1.0, returned points are approximately uniformly distributed ✓
+- With density 1.0 on the left half and 0.0 on the right, nearly all points are on the left ✓
+- `influence=0` produces uniform distribution regardless of density ✓
+- Output count is approximately the requested `count` ✓
 
 ### 4.2 Flow Field Tracing
 

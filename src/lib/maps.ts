@@ -1,4 +1,4 @@
-import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2 } from '@/lib/types'
+import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2, Random } from '@/lib/types'
 
 const VALID_MAP_KEYS = new Set<MapKey>([
   'density_target',
@@ -347,4 +347,62 @@ export class MapBundle {
   get mapHeight(): number {
     return this._manifest.height
   }
+}
+
+/**
+ * Scatter points using density-weighted rejection sampling.
+ *
+ * @param random - Seeded random number generator
+ * @param width - Width of the area in cm
+ * @param height - Height of the area in cm
+ * @param count - Target number of points to generate
+ * @param densitySampler - Function that returns density value [0,1] at given position
+ * @param influence - Controls how strongly density affects distribution (0=uniform, 1=proportional, >1=concentrated)
+ * @returns Array of scattered points
+ */
+export function scatterPoints(
+  random: Random,
+  width: number,
+  height: number,
+  count: number,
+  densitySampler: (x: number, y: number) => number,
+  influence: number,
+): Vec2[] {
+  const points: Vec2[] = []
+  const oversampleFactor = 3 // Oversample to compensate for rejections
+  const maxAttempts = count * oversampleFactor * 10 // Prevent infinite loops
+  let attempts = 0
+
+  // For influence = 0, we want uniform distribution regardless of density
+  // For influence > 0, we use density^influence as the acceptance probability
+
+  while (points.length < count && attempts < maxAttempts) {
+    attempts++
+
+    // Generate uniform random candidate
+    const x = random.range(0, width)
+    const y = random.range(0, height)
+
+    if (influence === 0) {
+      // Uniform distribution - always accept
+      points.push([x, y])
+    } else {
+      // Sample density at this position
+      const density = densitySampler(x, y)
+
+      // Clamp density to valid range [0, 1]
+      const clampedDensity = Math.max(0, Math.min(1, density))
+
+      // Calculate acceptance probability
+      const acceptanceProbability = Math.pow(clampedDensity, influence)
+
+      // Accept or reject based on probability
+      if (random.value() < acceptanceProbability) {
+        points.push([x, y])
+      }
+    }
+  }
+
+  // Return exactly count points (or fewer if we couldn't generate enough)
+  return points.slice(0, count)
 }
