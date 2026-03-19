@@ -1,4 +1,4 @@
-import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2, Random, Polyline, TraceOptions } from '@/lib/types'
+import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2, Random, Polyline, TraceOptions, TraceFlowNoiseOptions } from '@/lib/types'
 
 const VALID_MAP_KEYS = new Set<MapKey>([
   'density_target',
@@ -487,4 +487,145 @@ export function traceFlow(
   }
 
   return polyline
+}
+
+/**
+ * Trace a path through a flow field with noise perturbation and tone modulation.
+ *
+ * Blends flow direction with noise-derived direction at each step.
+ * Supports tone-modulated line length, pen-up/pen-down via tone threshold,
+ * and bidirectional tracing (forward + backward from seed).
+ *
+ * Returns multiple polyline segments — the pen lifts where tone < toneThreshold.
+ * The particle continues tracing through light areas (so it can reach
+ * disconnected dark regions), but those segments are omitted from output.
+ */
+export function traceFlowNoise(
+  start: Vec2,
+  flowSampler: (x: number, y: number) => Vec2,
+  options: TraceFlowNoiseOptions,
+): Polyline[] {
+  const {
+    noise,
+    noiseScale,
+    noiseInfluence,
+    toneSampler,
+    toneInfluence = 0,
+    toneThreshold = 0,
+    bidirectional = false,
+  } = options
+
+  // Compute effective maxSteps based on tone at start point
+  let effectiveMaxSteps = options.maxSteps
+  if (toneSampler && toneInfluence > 0) {
+    const toneValue = Math.max(0, Math.min(1, toneSampler(start[0], start[1])))
+    // lerp(1, toneValue, toneInfluence) — at toneInfluence=1, maxSteps scales directly with tone
+    const scaleFactor = 1 - toneInfluence + toneInfluence * toneValue
+    effectiveMaxSteps = Math.round(options.maxSteps * scaleFactor)
+  }
+
+  const traceDirection = (
+    seed: Vec2,
+    direction: 1 | -1,
+    maxSteps: number,
+  ): Vec2[] => {
+    const { stepSize, maxDistance, bounds, speedSampler, minSpeed = 0.1 } = options
+    const points: Vec2[] = [seed]
+    let currentPos: Vec2 = [...seed] as Vec2
+    let totalDistance = 0
+
+    for (let step = 0; step < maxSteps; step++) {
+      const flow = flowSampler(currentPos[0], currentPos[1])
+      const dirFlow: Vec2 = [flow[0] * direction, flow[1] * direction]
+
+      const flowMagnitude = Math.sqrt(dirFlow[0] * dirFlow[0] + dirFlow[1] * dirFlow[1])
+      if (flowMagnitude < 0.00001) break
+
+      const flowDir: Vec2 = [dirFlow[0] / flowMagnitude, dirFlow[1] / flowMagnitude]
+
+      const noiseAngle = noise(currentPos[0] / noiseScale, currentPos[1] / noiseScale) * Math.PI
+      const noiseDir: Vec2 = [Math.cos(noiseAngle), Math.sin(noiseAngle)]
+
+      const ni = typeof noiseInfluence === 'function'
+        ? Math.max(0, Math.min(1, noiseInfluence(currentPos[0], currentPos[1])))
+        : noiseInfluence
+
+      const blendX = flowDir[0] * (1 - ni) + noiseDir[0] * ni
+      const blendY = flowDir[1] * (1 - ni) + noiseDir[1] * ni
+      const blendMag = Math.sqrt(blendX * blendX + blendY * blendY)
+      if (blendMag < 0.00001) break
+
+      const finalDir: Vec2 = [blendX / blendMag, blendY / blendMag]
+
+      let actualStepSize = stepSize
+      if (speedSampler) {
+        const speed = Math.max(0, Math.min(1, speedSampler(currentPos[0], currentPos[1])))
+        actualStepSize = stepSize * (minSpeed + (1 - minSpeed) * speed)
+      }
+
+      const nextPos: Vec2 = [
+        currentPos[0] + finalDir[0] * actualStepSize,
+        currentPos[1] + finalDir[1] * actualStepSize,
+      ]
+
+      if (nextPos[0] < 0 || nextPos[0] > bounds.width ||
+          nextPos[1] < 0 || nextPos[1] > bounds.height) {
+        break
+      }
+
+      const stepDistance = Math.sqrt(
+        (nextPos[0] - currentPos[0]) ** 2 +
+        (nextPos[1] - currentPos[1]) ** 2,
+      )
+      totalDistance += stepDistance
+      if (totalDistance > maxDistance) break
+
+      points.push(nextPos)
+      currentPos = nextPos
+    }
+
+    return points
+  }
+
+  // Get the full traced path (all points, regardless of tone)
+  let fullPath: Vec2[]
+  if (bidirectional) {
+    const halfSteps = Math.ceil(effectiveMaxSteps / 2)
+    const backward = traceDirection(start, -1, halfSteps)
+    const forward = traceDirection(start, 1, halfSteps)
+    const backwardReversed = backward.slice(1).reverse()
+    fullPath = [...backwardReversed, ...forward]
+  } else {
+    fullPath = traceDirection(start, 1, effectiveMaxSteps)
+  }
+
+  // Split path into segments based on tone threshold (pen-up/pen-down)
+  if (toneThreshold > 0 && toneSampler) {
+    const segments: Polyline[] = []
+    let currentSegment: Vec2[] = []
+
+    for (const point of fullPath) {
+      const tone = toneSampler(point[0], point[1])
+      if (tone >= toneThreshold) {
+        // Pen down — add to current segment
+        currentSegment.push(point)
+      } else {
+        // Pen up — flush current segment if it has enough points
+        if (currentSegment.length >= 2) {
+          segments.push(currentSegment)
+        }
+        currentSegment = []
+      }
+    }
+
+    // Flush final segment
+    if (currentSegment.length >= 2) {
+      segments.push(currentSegment)
+    }
+
+    return segments
+  }
+
+  // No threshold — return the full path as a single segment (if long enough)
+  return fullPath.length >= 2 ? [fullPath] : []
 }

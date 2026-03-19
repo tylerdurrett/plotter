@@ -135,3 +135,21 @@ export interface TraceOptions {
   /** Minimum speed factor when modulated (0-1) */
   minSpeed?: number
 }
+
+/** Options for flow tracing with noise perturbation and tone modulation */
+export interface TraceFlowNoiseOptions extends TraceOptions {
+  /** 2D noise function returning [-1, 1], e.g. random.noise2D */
+  noise: (x: number, y: number) => number
+  /** Noise spatial frequency — controls feature size in cm (smaller = finer detail) */
+  noiseScale: number
+  /** Blend between flow (0) and noise (1). Can be a constant or a per-position sampler */
+  noiseInfluence: number | ((x: number, y: number) => number)
+  /** Density/tone sampler [0,1] — modulates trace length and pen-up/pen-down */
+  toneSampler?: (x: number, y: number) => number
+  /** How much tone modulates maxSteps: 0 = no effect, 1 = full effect */
+  toneInfluence?: number
+  /** Tone threshold for pen-up/pen-down — pen lifts where tone < threshold */
+  toneThreshold?: number
+  /** When true, trace both forward and backward from seed point */
+  bidirectional?: boolean
+}

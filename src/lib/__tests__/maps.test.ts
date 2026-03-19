@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { parseManifest, computeMapTransform, sampleMap, MapBundle, scatterPoints, traceFlow } from '../maps'
-import type { MapManifest, Vec2, TraceOptions } from '@/lib/types'
+import { parseManifest, computeMapTransform, sampleMap, MapBundle, scatterPoints, traceFlow, traceFlowNoise } from '../maps'
+import type { MapManifest, Vec2, TraceOptions, TraceFlowNoiseOptions } from '@/lib/types'
 import { createRandom } from '../random'
 
 describe('parseManifest', () => {
@@ -2050,6 +2050,356 @@ describe('traceFlow', () => {
       // Should only have starting point
       expect(polyline).toHaveLength(1)
       expect(polyline[0]).toEqual(start)
+    })
+  })
+})
+
+describe('traceFlowNoise', () => {
+  const random = createRandom(42)
+  const baseOptions: TraceFlowNoiseOptions = {
+    stepSize: 0.1,
+    maxSteps: 50,
+    maxDistance: 100,
+    bounds: { width: 20, height: 20 },
+    noise: random.noise2D,
+    noiseScale: 1.0,
+    noiseInfluence: 0,
+  }
+
+  // Helper: get the single segment from a result (most tests produce one segment)
+  const single = (segments: Vec2[][]): Vec2[] => {
+    expect(segments.length).toBe(1)
+    return segments[0]
+  }
+
+  // Helper: flatten all segments into one point array
+  const flatten = (segments: Vec2[][]): Vec2[] => segments.flat()
+
+  describe('with noiseInfluence = 0 (pure flow)', () => {
+    it('traces identically to traceFlow for constant flow', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+      const options: TraceFlowNoiseOptions = { ...baseOptions, noiseInfluence: 0 }
+
+      const noiseResult = single(traceFlowNoise(start, flowSampler, options))
+      const flowResult = traceFlow(start, flowSampler, {
+        stepSize: 0.1,
+        maxSteps: 50,
+        maxDistance: 100,
+        bounds: { width: 20, height: 20 },
+      })
+
+      expect(noiseResult).toHaveLength(flowResult.length)
+      for (let i = 0; i < noiseResult.length; i++) {
+        expect(noiseResult[i][0]).toBeCloseTo(flowResult[i][0], 5)
+        expect(noiseResult[i][1]).toBeCloseTo(flowResult[i][1], 5)
+      }
+    })
+  })
+
+  describe('noise perturbation', () => {
+    it('produces different path than pure flow when noiseInfluence > 0', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const pureFlow = single(traceFlowNoise(start, flowSampler, { ...baseOptions, noiseInfluence: 0 }))
+      const withNoise = single(traceFlowNoise(start, flowSampler, { ...baseOptions, noiseInfluence: 0.5 }))
+
+      expect(pureFlow.length).toBeGreaterThan(1)
+      expect(withNoise.length).toBeGreaterThan(1)
+
+      let hasDifference = false
+      const minLen = Math.min(pureFlow.length, withNoise.length)
+      for (let i = 1; i < minLen; i++) {
+        if (Math.abs(pureFlow[i][1] - withNoise[i][1]) > 0.001) {
+          hasDifference = true
+          break
+        }
+      }
+      expect(hasDifference).toBe(true)
+    })
+
+    it('respects noiseScale — both scales produce noise-affected paths', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const largeScale = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions, noiseInfluence: 0.5, noiseScale: 5.0,
+      }))
+      const smallScale = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions, noiseInfluence: 0.5, noiseScale: 0.2,
+      }))
+
+      expect(largeScale.length).toBeGreaterThan(5)
+      expect(smallScale.length).toBeGreaterThan(5)
+
+      const yVariance = (pts: Vec2[]) => {
+        const ys = pts.map(p => p[1])
+        const mean = ys.reduce((a, b) => a + b, 0) / ys.length
+        return ys.reduce((sum, y) => sum + (y - mean) ** 2, 0) / ys.length
+      }
+
+      expect(yVariance(smallScale)).toBeGreaterThan(0)
+      expect(yVariance(largeScale)).toBeGreaterThan(0)
+    })
+
+    it('supports noiseInfluence as a per-position function', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const spatialInfluence = (x: number): number => x > 10 ? 0.8 : 0.0
+      const result = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions, noiseInfluence: spatialInfluence,
+      }))
+
+      expect(result.length).toBeGreaterThan(1)
+
+      const earlyPoints = result.filter(p => p[0] < 9)
+      earlyPoints.forEach(p => {
+        expect(p[1]).toBeCloseTo(10, 0)
+      })
+    })
+  })
+
+  describe('tone modulation', () => {
+    it('produces shorter traces for low tone values', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const highTone = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler: () => 1.0,
+        toneInfluence: 1.0,
+        maxSteps: 100,
+      }))
+
+      const lowTone = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler: () => 0.1,
+        toneInfluence: 1.0,
+        maxSteps: 100,
+      }))
+
+      expect(highTone.length).toBeGreaterThan(lowTone.length)
+    })
+
+    it('has no effect when toneInfluence is 0', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const withTone = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler: () => 0.1,
+        toneInfluence: 0,
+        maxSteps: 20,
+      }))
+
+      const withoutTone = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        maxSteps: 20,
+      }))
+
+      expect(withTone.length).toBe(withoutTone.length)
+    })
+
+    it('clamps tone values to [0, 1]', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const overTone = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler: () => 2.0,
+        toneInfluence: 1.0,
+        maxSteps: 20,
+      }))
+
+      const normalTone = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler: () => 1.0,
+        toneInfluence: 1.0,
+        maxSteps: 20,
+      }))
+
+      expect(overTone.length).toBe(normalTone.length)
+    })
+  })
+
+  describe('tone threshold (pen-up/pen-down)', () => {
+    it('splits path into segments based on tone threshold', () => {
+      const start: Vec2 = [0, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      // Tone is high for x < 5, low for 5 <= x < 10, high again for x >= 10
+      const toneSampler = (x: number): number => (x < 5 || x >= 10) ? 0.8 : 0.1
+
+      const segments = traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler,
+        toneThreshold: 0.5,
+        maxSteps: 180,
+      })
+
+      // Should produce 2 segments: one for x < 5, one for x >= 10
+      expect(segments.length).toBe(2)
+
+      // First segment should be in x < 5 region
+      segments[0].forEach(p => expect(p[0]).toBeLessThan(5.1))
+
+      // Second segment should be in x >= 10 region
+      segments[1].forEach(p => expect(p[0]).toBeGreaterThanOrEqual(9.9))
+    })
+
+    it('returns no segments when all tone is below threshold', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const segments = traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler: () => 0.1,
+        toneThreshold: 0.5,
+        maxSteps: 20,
+      })
+
+      expect(segments).toHaveLength(0)
+    })
+
+    it('returns single segment when all tone is above threshold', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const segments = traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler: () => 0.8,
+        toneThreshold: 0.5,
+        maxSteps: 20,
+      })
+
+      expect(segments).toHaveLength(1)
+      expect(segments[0].length).toBeGreaterThan(1)
+    })
+
+    it('has no effect when toneThreshold is 0', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const withThreshold = traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        toneSampler: () => 0.1,
+        toneThreshold: 0,
+        maxSteps: 20,
+      })
+
+      // Should return full path as single segment (threshold 0 = no pen-up)
+      expect(withThreshold).toHaveLength(1)
+      expect(withThreshold[0].length).toBe(21)
+    })
+  })
+
+  describe('bidirectional tracing', () => {
+    it('extends path in both directions from seed', () => {
+      const start: Vec2 = [10, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const uniPath = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions, bidirectional: false, maxSteps: 10,
+      }))
+      const biPath = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions, bidirectional: true, maxSteps: 10,
+      }))
+
+      // Unidirectional starts at seed and only goes right
+      expect(uniPath[0][0]).toBeCloseTo(10, 5)
+      expect(uniPath[uniPath.length - 1][0]).toBeGreaterThan(10)
+
+      // Bidirectional extends left AND right of seed
+      expect(biPath[0][0]).toBeLessThan(10)
+      expect(biPath[biPath.length - 1][0]).toBeGreaterThan(10)
+    })
+
+    it('contains the seed point', () => {
+      const start: Vec2 = [10, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const path = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions, bidirectional: true, maxSteps: 20,
+      }))
+
+      const hasSeed = path.some(
+        p => Math.abs(p[0] - 10) < 0.001 && Math.abs(p[1] - 10) < 0.001,
+      )
+      expect(hasSeed).toBe(true)
+    })
+
+    it('backward part traces in opposite direction', () => {
+      const start: Vec2 = [10, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const path = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions, bidirectional: true, maxSteps: 20,
+      }))
+
+      expect(path[0][0]).toBeLessThan(10)
+      expect(path[path.length - 1][0]).toBeGreaterThan(10)
+    })
+  })
+
+  describe('stopping conditions', () => {
+    it('stops at bounds', () => {
+      const start: Vec2 = [19, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const path = single(traceFlowNoise(start, flowSampler, baseOptions))
+      const lastPoint = path[path.length - 1]
+      expect(lastPoint[0]).toBeLessThanOrEqual(20)
+    })
+
+    it('stops at maxDistance', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const path = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions, maxDistance: 1.0,
+      }))
+
+      let totalDist = 0
+      for (let i = 1; i < path.length; i++) {
+        const dx = path[i][0] - path[i - 1][0]
+        const dy = path[i][1] - path[i - 1][1]
+        totalDist += Math.sqrt(dx * dx + dy * dy)
+      }
+      expect(totalDist).toBeLessThanOrEqual(1.1)
+    })
+
+    it('returns empty on zero flow', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [0, 0]
+
+      // Zero flow = only 1 point = fewer than 2 = no segments returned
+      const result = traceFlowNoise(start, flowSampler, baseOptions)
+      expect(result).toHaveLength(0)
+    })
+  })
+
+  describe('speed modulation', () => {
+    it('modulates step size via speedSampler', () => {
+      const start: Vec2 = [0, 10]
+      const flowSampler = (): Vec2 => [1, 0]
+
+      const fast = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        speedSampler: () => 1.0,
+        maxSteps: 10,
+      }))
+      const slow = single(traceFlowNoise(start, flowSampler, {
+        ...baseOptions,
+        speedSampler: () => 0.0,
+        minSpeed: 0.2,
+        maxSteps: 10,
+      }))
+
+      const lastFast = fast[fast.length - 1][0]
+      const lastSlow = slow[slow.length - 1][0]
+      expect(lastFast).toBeGreaterThan(lastSlow)
     })
   })
 })

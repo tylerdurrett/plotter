@@ -1,6 +1,6 @@
-import type { SketchModule, SketchContext, Polyline, Vec2, TraceOptions } from '@/lib/types'
+import type { SketchModule, SketchContext, Polyline, Vec2, TraceFlowNoiseOptions } from '@/lib/types'
 import { PAPER_SIZES } from '@/lib/paper'
-import { scatterPoints, traceFlow } from '@/lib/maps'
+import { scatterPoints, traceFlowNoise } from '@/lib/maps'
 
 const sketch: SketchModule = {
   params: {
@@ -21,17 +21,31 @@ const sketch: SketchModule = {
       options: ['cover', 'fit'],
     },
 
-    // Map-driven drawing parameters
-    seedCount: { value: 1000, min: 100, max: 5000, step: 100 },
+    // Scatter parameters
+    seedCount: { value: 1000, min: 50, max: 20000, step: 50 },
+    densityInfluence: { value: 1, min: 0, max: 3, step: 0.1 },
+    scatterDensityFloor: { value: 0.05, min: 0, max: 1, step: 0.01 },
+
+    // Trace parameters
     stepSize: { value: 0.1, min: 0.02, max: 0.2, step: 0.01 },
     maxSteps: { value: 500, min: 50, max: 2000, step: 50 },
     maxDistance: { value: 10, min: 1, max: 30, step: 1 },
-    densityInfluence: { value: 1, min: 0, max: 3, step: 0.1 },
     minSpeed: { value: 0.1, min: 0, max: 1, step: 0.05 },
+
+    // Noise perturbation
+    noiseInfluence: { value: 0.3, min: 0, max: 1, step: 0.05 },
+    noiseScale: { value: 1.0, min: 0.1, max: 5.0, step: 0.1 },
+
+    // Tone modulation
+    toneInfluence: { value: 0.7, min: 0, max: 1, step: 0.05 },
+    toneThreshold: { value: 0.15, min: 0, max: 1, step: 0.01 },
+
+    // Drawing behavior
+    bidirectional: { value: true, options: [true, false] },
+    coherenceBlend: { value: false, options: [true, false] },
   },
 
   async setup(ctx: SketchContext) {
-    // Preload required maps if a bundle is selected
     if (ctx.maps) {
       try {
         await Promise.all([
@@ -40,17 +54,11 @@ const sketch: SketchModule = {
           ctx.maps.ensureMap('flow_y'),
         ])
 
-        // Try to load optional maps for speed modulation
-        try {
-          await ctx.maps.ensureMap('flow_speed')
-        } catch {
-          // flow_speed might not be available, try complexity as fallback
-          try {
-            await ctx.maps.ensureMap('complexity')
-          } catch {
-            // Neither speed map available, will run without speed modulation
-          }
+        // Try optional maps
+        try { await ctx.maps.ensureMap('flow_speed') } catch {
+          try { await ctx.maps.ensureMap('complexity') } catch { /* no speed map */ }
         }
+        try { await ctx.maps.ensureMap('coherence') } catch { /* no coherence map */ }
       } catch (error) {
         console.error('Failed to preload maps:', error)
       }
@@ -60,15 +68,20 @@ const sketch: SketchModule = {
   render(ctx: SketchContext, params: Record<string, unknown>): Polyline[] {
     const seed = params.seed as number
     const mapBundle = params.mapBundle as string
-    // fitMode is handled via ctx.maps which already uses the correct mode
     const seedCount = params.seedCount as number
     const stepSize = params.stepSize as number
     const maxSteps = params.maxSteps as number
     const maxDistance = params.maxDistance as number
     const densityInfluence = params.densityInfluence as number
     const minSpeed = params.minSpeed as number
+    const noiseInfluence = params.noiseInfluence as number
+    const noiseScale = params.noiseScale as number
+    const toneInfluence = params.toneInfluence as number
+    const toneThreshold = params.toneThreshold as number
+    const bidirectional = params.bidirectional as boolean
+    const coherenceBlend = params.coherenceBlend as boolean
+    const scatterDensityFloor = params.scatterDensityFloor as number
 
-    // If no map bundle is selected or available, return empty
     if (mapBundle === 'none' || !ctx.maps) {
       return []
     }
@@ -77,68 +90,80 @@ const sketch: SketchModule = {
     const lines: Polyline[] = []
 
     try {
-      // Create density sampler for scattering points
+      // Density sampler with floor applied — ensures light areas still get some points
       const densitySampler = (x: number, y: number): number => {
-        return ctx.maps!.sample('density_target', x, y)
+        const raw = ctx.maps!.sample('density_target', x, y)
+        return scatterDensityFloor + (1 - scatterDensityFloor) * raw
       }
 
-      // Scatter seed points using density-weighted rejection sampling
       const seedPoints = scatterPoints(
         random,
         ctx.width,
         ctx.height,
         seedCount,
         densitySampler,
-        densityInfluence
+        densityInfluence,
       )
 
-      // Create flow sampler for tracing
+      // Shuffle for natural overlap ordering
+      const shuffledSeeds = random.shuffle(seedPoints)
+
+      // Flow sampler
       const flowSampler = (x: number, y: number): Vec2 => {
         return ctx.maps!.sampleFlow(x, y)
       }
 
-      // Create speed sampler (prefer flow_speed, fallback to complexity)
-      let speedSampler: ((x: number, y: number) => number) | undefined
+      // Tone sampler (raw density, no floor — we want actual tonal values)
+      const toneSampler = (x: number, y: number): number => {
+        return ctx.maps!.sample('density_target', x, y)
+      }
 
-      // Try to use flow_speed first, then complexity as fallback
+      // Speed sampler
+      let speedSampler: ((x: number, y: number) => number) | undefined
       try {
-        // Check if we can sample flow_speed
         ctx.maps.sample('flow_speed', 0, 0)
-        speedSampler = (x: number, y: number): number => {
-          return ctx.maps!.sample('flow_speed', x, y)
-        }
+        speedSampler = (x: number, y: number) => ctx.maps!.sample('flow_speed', x, y)
       } catch {
-        // flow_speed not available, try complexity
         try {
           ctx.maps.sample('complexity', 0, 0)
-          speedSampler = (x: number, y: number): number => {
-            return ctx.maps!.sample('complexity', x, y)
+          speedSampler = (x: number, y: number) => ctx.maps!.sample('complexity', x, y)
+        } catch { /* no speed map */ }
+      }
+
+      // Build noise influence: constant or coherence-driven
+      let resolvedNoiseInfluence: number | ((x: number, y: number) => number) = noiseInfluence
+      if (coherenceBlend) {
+        try {
+          ctx.maps.sample('coherence', 0, 0)
+          // High coherence (edges) → low noise, low coherence (smooth) → high noise
+          resolvedNoiseInfluence = (x: number, y: number): number => {
+            const coherence = ctx.maps!.sample('coherence', x, y)
+            return noiseInfluence * (1 - coherence)
           }
         } catch {
-          // Neither speed map available, speedSampler remains undefined
+          // Coherence map not available, fall back to constant
         }
       }
 
-      // Trace flow field from each seed point
-      for (const seedPoint of seedPoints) {
-        const traceOptions: TraceOptions = {
+      for (const seedPoint of shuffledSeeds) {
+        const traceOptions: TraceFlowNoiseOptions = {
           stepSize,
           maxSteps,
           maxDistance,
-          bounds: {
-            width: ctx.width,
-            height: ctx.height,
-          },
+          bounds: { width: ctx.width, height: ctx.height },
           speedSampler,
           minSpeed,
+          noise: random.noise2D,
+          noiseScale,
+          noiseInfluence: resolvedNoiseInfluence,
+          toneSampler,
+          toneInfluence,
+          toneThreshold,
+          bidirectional,
         }
 
-        const polyline = traceFlow(seedPoint, flowSampler, traceOptions)
-
-        // Only add polylines with at least 2 points (actual lines)
-        if (polyline.length >= 2) {
-          lines.push(polyline)
-        }
+        const segments = traceFlowNoise(seedPoint, flowSampler, traceOptions)
+        lines.push(...segments)
       }
     } catch (error) {
       console.error('Error rendering with maps:', error)
