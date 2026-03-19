@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { parseManifest, computeMapTransform, sampleMap, MapBundle, scatterPoints } from '../maps'
-import type { MapManifest } from '@/lib/types'
+import { parseManifest, computeMapTransform, sampleMap, MapBundle, scatterPoints, traceFlow } from '../maps'
+import type { MapManifest, Vec2, TraceOptions } from '@/lib/types'
 import { createRandom } from '../random'
 
 describe('parseManifest', () => {
@@ -1623,6 +1623,433 @@ describe('scatterPoints', () => {
       for (let i = 1; i < centerCounts.length; i++) {
         expect(centerCounts[i]).toBeGreaterThanOrEqual(centerCounts[i - 1])
       }
+    })
+  })
+})
+
+describe('traceFlow', () => {
+  describe('basic tracing', () => {
+    it('traces a horizontal line with constant rightward flow', () => {
+      const start: Vec2 = [0, 5]
+      const flowSampler = (): Vec2 => [1, 0] // Constant rightward flow
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 10,
+        maxDistance: 10,
+        bounds: { width: 20, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should have 11 points (start + 10 steps)
+      expect(polyline).toHaveLength(11)
+
+      // All points should have y=5 (horizontal line)
+      polyline.forEach(point => {
+        expect(point[1]).toBe(5)
+      })
+
+      // X coordinates should increase by stepSize
+      for (let i = 0; i < polyline.length; i++) {
+        expect(polyline[i][0]).toBeCloseTo(i * 0.1, 5)
+      }
+    })
+
+    it('traces a vertical line with constant upward flow', () => {
+      const start: Vec2 = [5, 10]
+      const flowSampler = (): Vec2 => [0, -1] // Constant upward flow
+      const options: TraceOptions = {
+        stepSize: 0.2,
+        maxSteps: 20,
+        maxDistance: 10,
+        bounds: { width: 10, height: 20 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should trace upward
+      expect(polyline.length).toBeGreaterThan(1)
+
+      // All points should have x=5 (vertical line)
+      polyline.forEach(point => {
+        expect(point[0]).toBe(5)
+      })
+
+      // Y coordinates should decrease (going up)
+      for (let i = 1; i < polyline.length; i++) {
+        expect(polyline[i][1]).toBeLessThan(polyline[i - 1][1])
+      }
+    })
+
+    it('traces curved path with circular flow field', () => {
+      const start: Vec2 = [10, 5]
+      // Circular flow field: at (x, y), flow is perpendicular to radius
+      const flowSampler = (x: number, y: number): Vec2 => {
+        const dx = x - 10
+        const dy = y - 10
+        const r = Math.sqrt(dx * dx + dy * dy)
+        if (r < 0.001) return [0, 0]
+        // Perpendicular to radius vector, normalized
+        return [-dy / r, dx / r]
+      }
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 50,
+        maxDistance: 10,
+        bounds: { width: 20, height: 20 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should create a curved path
+      expect(polyline.length).toBeGreaterThan(10)
+
+      // Check that path curves (not a straight line)
+      // by verifying that angles between successive segments vary
+      const angles: number[] = []
+      for (let i = 2; i < polyline.length; i++) {
+        const dx1 = polyline[i - 1][0] - polyline[i - 2][0]
+        const dy1 = polyline[i - 1][1] - polyline[i - 2][1]
+        const dx2 = polyline[i][0] - polyline[i - 1][0]
+        const dy2 = polyline[i][1] - polyline[i - 1][1]
+        const angle1 = Math.atan2(dy1, dx1)
+        const angle2 = Math.atan2(dy2, dx2)
+        angles.push(angle2 - angle1)
+      }
+
+      // Angles should be consistently changing (circular motion)
+      const avgAngleChange = angles.reduce((a, b) => a + b, 0) / angles.length
+      expect(Math.abs(avgAngleChange)).toBeGreaterThan(0.01)
+    })
+  })
+
+  describe('stopping conditions', () => {
+    it('stops at maxSteps limit', () => {
+      const start: Vec2 = [0, 0]
+      const flowSampler = (): Vec2 => [1, 0]
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 5, // Limited steps
+        maxDistance: 100, // High distance limit
+        bounds: { width: 100, height: 100 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should have exactly 6 points (start + 5 steps)
+      expect(polyline).toHaveLength(6)
+    })
+
+    it('stops at maxDistance limit', () => {
+      const start: Vec2 = [0, 0]
+      const flowSampler = (): Vec2 => [1, 0]
+      const options: TraceOptions = {
+        stepSize: 0.5,
+        maxSteps: 100, // High step limit
+        maxDistance: 2, // Limited distance
+        bounds: { width: 100, height: 100 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Calculate total distance
+      let totalDistance = 0
+      for (let i = 1; i < polyline.length; i++) {
+        const dx = polyline[i][0] - polyline[i - 1][0]
+        const dy = polyline[i][1] - polyline[i - 1][1]
+        totalDistance += Math.sqrt(dx * dx + dy * dy)
+      }
+
+      // Should not exceed maxDistance (with small tolerance)
+      expect(totalDistance).toBeLessThanOrEqual(2.5)
+      expect(polyline.length).toBeGreaterThan(1)
+      expect(polyline.length).toBeLessThan(10) // Should stop before maxSteps
+    })
+
+    it('stops when exiting bounds (right edge)', () => {
+      const start: Vec2 = [9.5, 5]
+      const flowSampler = (): Vec2 => [1, 0] // Rightward flow
+      const options: TraceOptions = {
+        stepSize: 0.2,
+        maxSteps: 100,
+        maxDistance: 100,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should stop at boundary
+      const lastPoint = polyline[polyline.length - 1]
+      expect(lastPoint[0]).toBeLessThanOrEqual(10)
+
+      // Should have stopped early (not all 100 steps)
+      expect(polyline.length).toBeLessThan(20)
+    })
+
+    it('stops when exiting bounds (top edge)', () => {
+      const start: Vec2 = [5, 0.5]
+      const flowSampler = (): Vec2 => [0, -1] // Upward flow
+      const options: TraceOptions = {
+        stepSize: 0.2,
+        maxSteps: 100,
+        maxDistance: 100,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should stop at boundary
+      const lastPoint = polyline[polyline.length - 1]
+      expect(lastPoint[1]).toBeGreaterThanOrEqual(0)
+
+      // Should have stopped early
+      expect(polyline.length).toBeLessThan(20)
+    })
+
+    it('stops immediately with zero flow', () => {
+      const start: Vec2 = [5, 5]
+      const flowSampler = (): Vec2 => [0, 0] // Zero flow
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 100,
+        maxDistance: 100,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should only have the starting point
+      expect(polyline).toHaveLength(1)
+      expect(polyline[0]).toEqual(start)
+    })
+
+    it('stops when encountering near-zero flow', () => {
+      const start: Vec2 = [5, 5]
+      let stepCount = 0
+      const flowSampler = (): Vec2 => {
+        stepCount++
+        // Flow becomes zero after a few steps
+        return stepCount <= 3 ? [1, 0] : [0.000001, 0.000001]
+      }
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 100,
+        maxDistance: 100,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should stop after flow becomes near-zero
+      expect(polyline.length).toBeGreaterThan(1)
+      expect(polyline.length).toBeLessThan(6)
+    })
+  })
+
+  describe('speed modulation', () => {
+    it('modulates step size based on speed sampler', () => {
+      const start: Vec2 = [0, 5]
+      const flowSampler = (): Vec2 => [1, 0]
+      let sampleCount = 0
+      const speedSampler = (x: number): number => {
+        sampleCount++
+        // Speed decreases along x
+        return Math.max(0, 1 - x / 10)
+      }
+      const options: TraceOptions = {
+        stepSize: 0.2,
+        maxSteps: 20,
+        maxDistance: 100,
+        bounds: { width: 20, height: 10 },
+        speedSampler,
+        minSpeed: 0.1,
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Speed sampler should have been called
+      expect(sampleCount).toBeGreaterThan(0)
+
+      // Step sizes should decrease as we move along x
+      const stepSizes: number[] = []
+      for (let i = 1; i < polyline.length; i++) {
+        stepSizes.push(polyline[i][0] - polyline[i - 1][0])
+      }
+
+      // Later steps should be smaller than earlier steps
+      if (stepSizes.length > 2) {
+        const earlyAvg = stepSizes.slice(0, 2).reduce((a, b) => a + b, 0) / 2
+        const lateAvg = stepSizes.slice(-2).reduce((a, b) => a + b, 0) / 2
+        expect(lateAvg).toBeLessThan(earlyAvg)
+      }
+    })
+
+    it('respects minSpeed parameter', () => {
+      const start: Vec2 = [0, 5]
+      const flowSampler = (): Vec2 => [1, 0]
+      const speedSampler = (): number => 0 // Always zero speed
+      const minSpeed = 0.2
+      const options: TraceOptions = {
+        stepSize: 1.0,
+        maxSteps: 10,
+        maxDistance: 100,
+        bounds: { width: 20, height: 10 },
+        speedSampler,
+        minSpeed,
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // With speed=0 and minSpeed=0.2, each step should be 0.2 * stepSize = 0.2
+      for (let i = 1; i < polyline.length; i++) {
+        const stepDist = polyline[i][0] - polyline[i - 1][0]
+        expect(stepDist).toBeCloseTo(0.2, 5)
+      }
+    })
+
+    it('clamps speed values to [0, 1] range', () => {
+      const start: Vec2 = [0, 5]
+      const flowSampler = (): Vec2 => [1, 0]
+      const speedSampler = (x: number): number => {
+        // Return invalid values
+        return x < 5 ? -0.5 : 1.5
+      }
+      const options: TraceOptions = {
+        stepSize: 0.2,
+        maxSteps: 30,
+        maxDistance: 100,
+        bounds: { width: 20, height: 10 },
+        speedSampler,
+        minSpeed: 0.1,
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should complete without errors
+      expect(polyline.length).toBeGreaterThan(1)
+
+      // Step sizes should be reasonable (clamped values)
+      for (let i = 1; i < polyline.length; i++) {
+        const stepDist = polyline[i][0] - polyline[i - 1][0]
+        expect(stepDist).toBeGreaterThan(0)
+        expect(stepDist).toBeLessThanOrEqual(0.2)
+      }
+    })
+  })
+
+  describe('edge cases', () => {
+    it('handles starting point at boundary', () => {
+      const start: Vec2 = [10, 5] // Right edge
+      const flowSampler = (): Vec2 => [1, 0] // Flow out of bounds
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 10,
+        maxDistance: 100,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should only have starting point (immediate exit)
+      expect(polyline).toHaveLength(1)
+      expect(polyline[0]).toEqual(start)
+    })
+
+    it('handles starting point outside bounds', () => {
+      const start: Vec2 = [15, 5] // Outside bounds
+      const flowSampler = (): Vec2 => [-1, 0] // Flow back toward bounds
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 10,
+        maxDistance: 100,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should stop immediately
+      expect(polyline).toHaveLength(1)
+    })
+
+    it('handles non-normalized flow vectors', () => {
+      const start: Vec2 = [5, 5]
+      const flowSampler = (): Vec2 => [3, 4] // Non-unit vector (magnitude 5)
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 10,
+        maxDistance: 100,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should normalize and trace correctly
+      expect(polyline.length).toBeGreaterThan(1)
+
+      // Check that steps are consistent size (0.1)
+      for (let i = 1; i < polyline.length; i++) {
+        const dx = polyline[i][0] - polyline[i - 1][0]
+        const dy = polyline[i][1] - polyline[i - 1][1]
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        expect(dist).toBeCloseTo(0.1, 5)
+      }
+    })
+
+    it('handles very small step sizes', () => {
+      const start: Vec2 = [5, 5]
+      const flowSampler = (): Vec2 => [1, 0]
+      const options: TraceOptions = {
+        stepSize: 0.001,
+        maxSteps: 100,
+        maxDistance: 0.1,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should trace with tiny steps
+      expect(polyline.length).toBeGreaterThan(50)
+
+      // Total distance should be close to maxDistance
+      let totalDist = 0
+      for (let i = 1; i < polyline.length; i++) {
+        totalDist += Math.abs(polyline[i][0] - polyline[i - 1][0])
+      }
+      expect(totalDist).toBeLessThanOrEqual(0.11) // Small tolerance
+    })
+
+    it('handles zero maxSteps', () => {
+      const start: Vec2 = [5, 5]
+      const flowSampler = (): Vec2 => [1, 0]
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 0,
+        maxDistance: 100,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should only have starting point
+      expect(polyline).toHaveLength(1)
+      expect(polyline[0]).toEqual(start)
+    })
+
+    it('handles zero maxDistance', () => {
+      const start: Vec2 = [5, 5]
+      const flowSampler = (): Vec2 => [1, 0]
+      const options: TraceOptions = {
+        stepSize: 0.1,
+        maxSteps: 100,
+        maxDistance: 0,
+        bounds: { width: 10, height: 10 },
+      }
+
+      const polyline = traceFlow(start, flowSampler, options)
+
+      // Should only have starting point
+      expect(polyline).toHaveLength(1)
+      expect(polyline[0]).toEqual(start)
     })
   })
 })

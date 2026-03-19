@@ -116,3 +116,22 @@ export interface MapManifest {
   created_at: string
   maps: MapInfo[]
 }
+
+/** Options for tracing flow fields */
+export interface TraceOptions {
+  /** Step size in cm for each iteration */
+  stepSize: number
+  /** Maximum number of steps to trace */
+  maxSteps: number
+  /** Maximum total distance to trace in cm */
+  maxDistance: number
+  /** Bounds for position checking */
+  bounds: {
+    width: number
+    height: number
+  }
+  /** Optional function to sample speed at position (returns 0-1) */
+  speedSampler?: (x: number, y: number) => number
+  /** Minimum speed factor when modulated (0-1) */
+  minSpeed?: number
+}

@@ -247,20 +247,27 @@ sketches/
 - `influence=0` produces uniform distribution regardless of density ✓
 - Output count is approximately the requested `count` ✓
 
-### 4.2 Flow Field Tracing
+### 4.2 Flow Field Tracing ✅
 
-- [ ] Add a `traceFlow(start: Vec2, flowSampler: (x: number, y: number) => Vec2, options: TraceOptions): Polyline` function in `src/lib/maps.ts`
-- [ ] `TraceOptions: { stepSize: number, maxSteps: number, maxDistance: number, bounds: { width: number, height: number }, speedSampler?: (x: number, y: number) => number, minSpeed?: number }`
-- [ ] Each step: read flow direction at current position, optionally modulate step size by `speedSampler` value (speed=1 → full step, speed→0 → step scaled to `minSpeed`), advance position, append to polyline
-- [ ] Stop when: exceeded maxSteps, total distance exceeds maxDistance, or position exits bounds (0,0 to width,height)
-- [ ] Write unit tests with a constant rightward flow `(1, 0)`: verify the trace produces a horizontal line of the expected length. Test with a circular flow field to verify curved paths.
+- [x] Add a `traceFlow(start: Vec2, flowSampler: (x: number, y: number) => Vec2, options: TraceOptions): Polyline` function in `src/lib/maps.ts`
+- [x] `TraceOptions: { stepSize: number, maxSteps: number, maxDistance: number, bounds: { width: number, height: number }, speedSampler?: (x: number, y: number) => number, minSpeed?: number }`
+- [x] Each step: read flow direction at current position, optionally modulate step size by `speedSampler` value (speed=1 → full step, speed→0 → step scaled to `minSpeed`), advance position, append to polyline
+- [x] Stop when: exceeded maxSteps, total distance exceeds maxDistance, or position exits bounds (0,0 to width,height)
+- [x] Write unit tests with a constant rightward flow `(1, 0)`: verify the trace produces a horizontal line of the expected length. Test with a circular flow field to verify curved paths.
+
+**Implementation Notes:**
+- Added `TraceOptions` interface to types.ts with all required and optional parameters
+- Implemented `traceFlow` function with proper flow normalization, boundary checking, and speed modulation
+- Function handles all edge cases: zero flow, near-zero flow, out-of-bounds start, and boundary exits
+- Created 30+ comprehensive unit tests covering all scenarios and edge cases
+- All tests pass successfully (108 total tests in maps.test.ts)
 
 **Acceptance Criteria:**
-- Constant rightward flow produces a horizontal line
-- `maxSteps=10, stepSize=0.1` produces ~10 segments covering ~1.0 distance
-- Trace stops at bounds
-- Speed modulation produces shorter steps in low-speed regions (more densely sampled)
-- Zero-flow regions produce single-point polylines (no infinite loops)
+- Constant rightward flow produces a horizontal line ✓
+- `maxSteps=10, stepSize=0.1` produces ~10 segments covering ~1.0 distance ✓
+- Trace stops at bounds ✓
+- Speed modulation produces shorter steps in low-speed regions (more densely sampled) ✓
+- Zero-flow regions produce single-point polylines (no infinite loops) ✓
 
 ### 4.3 Portrait-1 Sketch Implementation
 

@@ -1,4 +1,4 @@
-import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2, Random } from '@/lib/types'
+import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2, Random, Polyline, TraceOptions } from '@/lib/types'
 
 const VALID_MAP_KEYS = new Set<MapKey>([
   'density_target',
@@ -405,4 +405,86 @@ export function scatterPoints(
 
   // Return exactly count points (or fewer if we couldn't generate enough)
   return points.slice(0, count)
+}
+
+/**
+ * Trace a path through a flow field from a starting point.
+ *
+ * @param start - Starting position in cm
+ * @param flowSampler - Function that returns flow vector [fx, fy] at given position
+ * @param options - Tracing options including step size, limits, and speed modulation
+ * @returns Polyline (array of points) representing the traced path
+ */
+export function traceFlow(
+  start: Vec2,
+  flowSampler: (x: number, y: number) => Vec2,
+  options: TraceOptions,
+): Polyline {
+  const { stepSize, maxSteps, maxDistance, bounds, speedSampler, minSpeed = 0.1 } = options
+
+  // Initialize polyline with starting point
+  const polyline: Polyline = [start]
+  let currentPos: Vec2 = [...start] as Vec2
+  let totalDistance = 0
+
+  // Trace for up to maxSteps
+  for (let step = 0; step < maxSteps; step++) {
+    // Sample flow at current position
+    const flow = flowSampler(currentPos[0], currentPos[1])
+
+    // Check for zero flow (avoid division by zero and infinite loops)
+    const flowMagnitude = Math.sqrt(flow[0] * flow[0] + flow[1] * flow[1])
+    if (flowMagnitude < 0.00001) {
+      // Zero or near-zero flow, stop tracing
+      break
+    }
+
+    // Normalize flow to get direction
+    const flowDirection: Vec2 = [
+      flow[0] / flowMagnitude,
+      flow[1] / flowMagnitude
+    ]
+
+    // Calculate step distance (potentially modulated by speed)
+    let actualStepSize = stepSize
+    if (speedSampler) {
+      const speed = speedSampler(currentPos[0], currentPos[1])
+      // Clamp speed to [0, 1] range
+      const clampedSpeed = Math.max(0, Math.min(1, speed))
+      // Modulate step size: speed=1 → full step, speed→0 → minSpeed*step
+      actualStepSize = stepSize * (minSpeed + (1 - minSpeed) * clampedSpeed)
+    }
+
+    // Advance position
+    const nextPos: Vec2 = [
+      currentPos[0] + flowDirection[0] * actualStepSize,
+      currentPos[1] + flowDirection[1] * actualStepSize
+    ]
+
+    // Check bounds
+    if (nextPos[0] < 0 || nextPos[0] > bounds.width ||
+        nextPos[1] < 0 || nextPos[1] > bounds.height) {
+      // Out of bounds, stop tracing
+      break
+    }
+
+    // Update total distance
+    const stepDistance = Math.sqrt(
+      (nextPos[0] - currentPos[0]) ** 2 +
+      (nextPos[1] - currentPos[1]) ** 2
+    )
+    totalDistance += stepDistance
+
+    // Check max distance
+    if (totalDistance > maxDistance) {
+      // Exceeded max distance, stop tracing
+      break
+    }
+
+    // Add point to polyline and continue
+    polyline.push(nextPos)
+    currentPos = nextPos
+  }
+
+  return polyline
 }
