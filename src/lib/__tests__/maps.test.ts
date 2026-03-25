@@ -1267,6 +1267,49 @@ describe('MapBundle', () => {
       expect(fetchMock).toHaveBeenCalledTimes(5) // manifest + 4 maps, no extras
     })
   })
+
+  describe('MapBundle.fromApiResponse', () => {
+    it('creates a bundle from inline manifest without fetching', () => {
+      const manifest = createTestManifest()
+
+      const bundle = MapBundle.fromApiResponse(manifest, 'http://localhost:8100/api/maps/abc-123', 10, 10, 'fit')
+
+      // No fetch calls — manifest is provided inline
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(bundle.manifest).toEqual(manifest)
+      expect(bundle.mapWidth).toBe(4)
+      expect(bundle.mapHeight).toBe(4)
+    })
+
+    it('validates the manifest', () => {
+      expect(() =>
+        MapBundle.fromApiResponse({ invalid: true }, 'http://localhost:8100/api/maps/abc', 10, 10, 'fit'),
+      ).toThrow()
+    })
+
+    it('ensureMap fetches from the provided baseUrl', async () => {
+      const manifest = createTestManifest()
+      const densityData = createTestBinaryData()
+
+      const bundle = MapBundle.fromApiResponse(manifest, 'http://localhost:8100/api/maps/abc-123', 10, 10, 'cover')
+
+      fetchMock.mockResolvedValueOnce(binaryResponse(densityData))
+
+      await bundle.ensureMap('density_target')
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8100/api/maps/abc-123/density_target.bin')
+    })
+
+    it('computes correct transform for cover mode', () => {
+      const manifest = createTestManifest() // 4x4 map
+      // 20x10 draw area with 4x4 map in cover mode
+      // mapAspect=1 > drawAspect=0.5 → scale by height: scale=10/4=2.5
+      const bundle = MapBundle.fromApiResponse(manifest, 'http://localhost:8100/api/maps/abc', 20, 10, 'cover')
+      expect(bundle.manifest.width).toBe(4)
+      expect(bundle.manifest.height).toBe(4)
+    })
+  })
 })
 
 describe('scatterPoints', () => {

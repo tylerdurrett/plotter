@@ -6,6 +6,7 @@ import {
 } from '@/components/ControlPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ExportPanel } from '@/components/ExportPanel'
+import { MapGeneratePanel } from '@/components/MapGeneratePanel'
 import { MapOverlayPanel } from '@/components/MapOverlayPanel'
 import { MapPreview } from '@/components/MapPreview'
 import { PanelLayout } from '@/components/PanelLayout'
@@ -17,6 +18,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { SketchViewer } from '@/components/SketchViewer'
 import { useLevaParamHover } from '@/hooks/useLevaParamHover'
+import { useMapApi } from '@/hooks/useMapApi'
+import { API_PREFIX, getFullBaseUrl } from '@/lib/map-api'
+import type { SessionInfo } from '@/lib/map-api'
 import { useMaps } from '@/hooks/useMaps'
 import {
   getInitialSketch,
@@ -28,6 +32,13 @@ import { extractParamValues } from '@/lib/params'
 import { PAPER_SIZES } from '@/lib/paper'
 import type { PaperSize, Polyline, SketchModule, MapFitMode } from '@/lib/types'
 import type { MapBundleInfo } from '@/plugins/vite-plugin-maps'
+
+/** Format an API session as a display label for the dropdown */
+function sessionLabel(session: SessionInfo): string {
+  const name = session.source_image.replace(/\.[^.]+$/, '')
+  const truncated = name.length > 20 ? name.slice(0, 20) + '…' : name
+  return `${truncated} (API)`
+}
 
 /** Build a SketchContext from explicit param values */
 function buildContext(
@@ -55,6 +66,8 @@ function App() {
 
   // Map bundle state
   const { bundles: mapBundles } = useMaps()
+  const hasMapBundleParam = activeSketch != null && 'mapBundle' in activeSketch.params
+  const mapApi = useMapApi(hasMapBundleParam)
   const [currentMapBundle, setCurrentMapBundle] = useState<MapBundle | undefined>()
   const [currentBundleInfo, setCurrentBundleInfo] = useState<MapBundleInfo | undefined>()
   const [loadingMapBundle, setLoadingMapBundle] = useState(false)
@@ -190,12 +203,26 @@ function App() {
       return params
     }
 
-    const bundleOptions = ['none', ...mapBundles.map((b) => b.name)]
+    // Build options as { label: value } so API sessions show readable names
+    const bundleOptions: Record<string, string> = { none: 'none' }
+    for (const b of mapBundles) {
+      bundleOptions[b.name] = b.name
+    }
+    for (const s of mapApi.sessions) {
+      bundleOptions[sessionLabel(s)] = `${API_PREFIX}${s.session_id}`
+    }
     return {
       ...params,
       mapBundle: { ...(mapBundleParam as object), options: bundleOptions },
     }
   })()
+
+  // Stable key for ControlPanel remount — only changes when the set of
+  // available bundle options actually changes, not on every poll cycle.
+  const bundleOptionValues = Object.values(
+    (resolvedParams.mapBundle as { options?: Record<string, string> })?.options ?? {},
+  )
+  const controlPanelKey = `${activeSketchName}-${bundleOptionValues.join(',')}`
 
   // Track which bundle+fitMode combo we've already loaded to avoid re-triggering.
   const loadedBundleRef = useRef<string | null>(null)
@@ -223,26 +250,32 @@ function App() {
       return
     }
 
-    // Find the bundle info
-    const bundleInfo = mapBundles.find(b => b.name === mapBundleName)
-    if (!bundleInfo) {
-      console.warn(`Map bundle "${mapBundleName}" not found`)
-      setCurrentMapBundle(undefined)
+    const isApiSession = mapBundleName.startsWith(API_PREFIX)
+
+    if (isApiSession) {
+      // API-generated map — no local bundle info or previews
       setCurrentBundleInfo(undefined)
-      return
-    }
+    } else {
+      // Local bundle — find metadata for preview display
+      const bundleInfo = mapBundles.find(b => b.name === mapBundleName)
+      if (!bundleInfo) {
+        console.warn(`Map bundle "${mapBundleName}" not found`)
+        setCurrentMapBundle(undefined)
+        setCurrentBundleInfo(undefined)
+        return
+      }
 
-    // Set the bundle info for preview display
-    setCurrentBundleInfo(bundleInfo)
+      setCurrentBundleInfo(bundleInfo)
 
-    // Validate overlay map key - reset to default if not available in new bundle
-    if (bundleInfo.availablePreviews && bundleInfo.availablePreviews.length > 0) {
-      const isValidKey = bundleInfo.availablePreviews.some(p => p.path === overlayMapKey)
-      if (!isValidKey) {
-        const defaultPreview = bundleInfo.availablePreviews.find(p => p.path === 'density/density_target')
-          || bundleInfo.availablePreviews[0]
-        if (defaultPreview) {
-          setOverlayMapKey(defaultPreview.path)
+      // Validate overlay map key - reset to default if not available in new bundle
+      if (bundleInfo.availablePreviews && bundleInfo.availablePreviews.length > 0) {
+        const isValidKey = bundleInfo.availablePreviews.some(p => p.path === overlayMapKey)
+        if (!isValidKey) {
+          const defaultPreview = bundleInfo.availablePreviews.find(p => p.path === 'density/density_target')
+            || bundleInfo.availablePreviews[0]
+          if (defaultPreview) {
+            setOverlayMapKey(defaultPreview.path)
+          }
         }
       }
     }
@@ -259,8 +292,13 @@ function App() {
         const drawWidth = paper.width - paperMargin * 2
         const drawHeight = paper.height - paperMargin * 2
 
+        // API sessions load from the API server; local bundles from /maps/
+        const baseUrl = isApiSession
+          ? getFullBaseUrl(mapBundleName.slice(API_PREFIX.length))
+          : `/maps/${mapBundleName}/export`
+
         const bundle = await MapBundle.load(
-          `/maps/${mapBundleName}/export`,
+          baseUrl,
           drawWidth,
           drawHeight,
           fitMode,
@@ -361,6 +399,10 @@ function App() {
     controlPanelRef.current?.setValues({ seed: newSeed })
   }, [])
 
+  const handleSelectMapBundle = useCallback((value: string) => {
+    controlPanelRef.current?.setValues({ mapBundle: value })
+  }, [])
+
   const getCurrentParams = useCallback(() => pendingParamsRef.current, [])
 
   const handleLoadPreset = useCallback(
@@ -445,7 +487,7 @@ function App() {
       <div className="flex-1 overflow-y-auto">
         <ControlPanel
           ref={controlPanelRef}
-          key={`${activeSketchName}-${mapBundles.length}`}
+          key={controlPanelKey}
           params={resolvedParams}
           onChange={scheduleRender}
         />
@@ -453,11 +495,17 @@ function App() {
           scale={viewScale}
           onScaleChange={setViewScale}
         />
-        {activeSketchName === '2026-03-18-portrait-1' && (
+        {hasMapBundleParam && (
           <>
+            <MapGeneratePanel
+              mapApi={mapApi}
+              onSelectBundle={handleSelectMapBundle}
+              selectedBundle={selectedMapBundle}
+            />
             <MapPreview
               bundleInfo={currentBundleInfo}
               loading={loadingMapBundle}
+              emptyMessage={selectedMapBundle?.startsWith(API_PREFIX) ? 'No preview for API maps' : undefined}
             />
             {currentBundleInfo && (
               <MapOverlayPanel

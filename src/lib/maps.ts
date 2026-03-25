@@ -250,6 +250,28 @@ export class MapBundle {
     return new MapBundle(manifest, baseUrl, transform, fitMode)
   }
 
+  /**
+   * Create a MapBundle from an API generate response (manifest already in hand).
+   * Skips the manifest.json fetch — useful immediately after POST /api/generate.
+   */
+  static fromApiResponse(
+    manifestJson: unknown,
+    baseUrl: string,
+    drawWidth: number,
+    drawHeight: number,
+    fitMode: MapFitMode,
+  ): MapBundle {
+    const manifest = parseManifest(manifestJson)
+    const transform = computeMapTransform(
+      manifest.width,
+      manifest.height,
+      drawWidth,
+      drawHeight,
+      fitMode,
+    )
+    return new MapBundle(manifest, baseUrl, transform, fitMode)
+  }
+
   async ensureMap(key: MapKey): Promise<void> {
     // Check if already cached
     if (this.mapCache.has(key)) {

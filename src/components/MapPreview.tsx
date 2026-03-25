@@ -4,9 +4,11 @@ import type { MapBundleInfo } from '@/plugins/vite-plugin-maps'
 interface MapPreviewProps {
   bundleInfo?: MapBundleInfo | null
   loading?: boolean
+  /** Message shown when no bundleInfo is available (defaults to "No map selected") */
+  emptyMessage?: string
 }
 
-export function MapPreview({ bundleInfo, loading = false }: MapPreviewProps) {
+export function MapPreview({ bundleInfo, loading = false, emptyMessage = 'No map selected' }: MapPreviewProps) {
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
 
@@ -51,7 +53,9 @@ export function MapPreview({ bundleInfo, loading = false }: MapPreviewProps) {
           Map Preview
         </h3>
         <div className="bg-secondary rounded-md h-[150px] flex items-center justify-center">
-          <p className="text-xs text-muted-foreground">No map selected</p>
+          <p className="text-xs text-muted-foreground">
+            {emptyMessage}
+          </p>
         </div>
       </div>
     )
