@@ -223,7 +223,8 @@ describe('MapGeneratePanel', () => {
     fireEvent.click(screen.getByText('Generate Maps'))
 
     await waitFor(() => {
-      expect(generate).toHaveBeenCalledWith(file)
+      // Called with file and no config options (undefined)
+      expect(generate).toHaveBeenCalledWith(file, undefined)
       expect(onSelectBundle).toHaveBeenCalledWith('api:new-123')
     })
   })

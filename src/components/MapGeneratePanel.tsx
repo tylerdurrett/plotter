@@ -12,6 +12,8 @@ interface MapGeneratePanelProps {
   onSelectBundle: (bundleValue: string) => void
   /** The currently selected mapBundle param value */
   selectedBundle?: string
+  /** Pipeline config overrides to include when generating maps */
+  config?: Record<string, unknown>
 }
 
 function formatTime(isoString: string): string {
@@ -32,9 +34,11 @@ export function MapGeneratePanel({
   mapApi,
   onSelectBundle,
   selectedBundle,
+  config,
 }: MapGeneratePanelProps) {
   const { apiAvailable, checking, sessions, generating, error } = mapApi
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [lastGeneratedFile, setLastGeneratedFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -52,18 +56,24 @@ export function MapGeneratePanel({
     }
   }, [])
 
-  const handleGenerate = useCallback(async () => {
-    if (!selectedFile) return
+  const handleGenerate = useCallback(async (file?: File) => {
+    const imageFile = file ?? selectedFile
+    if (!imageFile) return
     try {
-      const response = await mapApi.generate(selectedFile)
+      const opts = config && Object.keys(config).length > 0 ? { config } : undefined
+      const response = await mapApi.generate(imageFile, opts)
       onSelectBundle(`${API_PREFIX}${response.session_id}`)
+      setLastGeneratedFile(imageFile)
       setSelectedFile(null)
-      // Clear the file input so the same file can be re-selected
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch {
       // Error is surfaced via mapApi.error
     }
-  }, [selectedFile, mapApi, onSelectBundle])
+  }, [selectedFile, mapApi, onSelectBundle, config])
+
+  const handleRegenerate = useCallback(() => {
+    if (lastGeneratedFile) handleGenerate(lastGeneratedFile)
+  }, [lastGeneratedFile, handleGenerate])
 
   const handleSessionSelect = useCallback(
     (session: SessionInfo) => {
@@ -148,10 +158,23 @@ export function MapGeneratePanel({
             size="sm"
             className="w-full"
             disabled={!selectedFile || generating}
-            onClick={handleGenerate}
+            onClick={() => handleGenerate()}
           >
             {generating ? 'Generating...' : 'Generate Maps'}
           </Button>
+
+          {/* Regenerate with updated config using the last uploaded image */}
+          {lastGeneratedFile && !selectedFile && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              disabled={generating}
+              onClick={handleRegenerate}
+            >
+              {generating ? 'Regenerating...' : 'Regenerate with Config'}
+            </Button>
+          )}
 
           {error && (
             <p className="text-xs text-destructive">{error}</p>

@@ -6,22 +6,24 @@ interface MapPreviewProps {
   loading?: boolean
   /** Message shown when no bundleInfo is available (defaults to "No map selected") */
   emptyMessage?: string
+  /** Override preview URL (e.g. for API-generated sessions) */
+  previewUrl?: string
 }
 
-export function MapPreview({ bundleInfo, loading = false, emptyMessage = 'No map selected' }: MapPreviewProps) {
+export function MapPreview({ bundleInfo, loading = false, emptyMessage = 'No map selected', previewUrl }: MapPreviewProps) {
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
 
-  // Reset loading state when bundle info changes
+  // Reset loading state when preview source changes
   useEffect(() => {
-    if (bundleInfo) {
+    if (bundleInfo || previewUrl) {
       // Use a microtask to avoid synchronous setState
       Promise.resolve().then(() => {
         setImageLoading(true)
         setImageError(false)
       })
     }
-  }, [bundleInfo])
+  }, [bundleInfo, previewUrl])
 
   const handleImageLoad = () => {
     setImageLoading(false)
@@ -46,7 +48,9 @@ export function MapPreview({ bundleInfo, loading = false, emptyMessage = 'No map
     )
   }
 
-  if (!bundleInfo) {
+  const resolvedUrl = previewUrl ?? bundleInfo?.previewUrl
+
+  if (!resolvedUrl) {
     return (
       <div className="p-3 border-t border-border">
         <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -75,17 +79,19 @@ export function MapPreview({ bundleInfo, loading = false, emptyMessage = 'No map
           </div>
         )}
         <img
-          src={bundleInfo.previewUrl}
-          alt={`Preview of ${bundleInfo.name} map bundle`}
+          src={resolvedUrl}
+          alt={`Preview of ${bundleInfo?.name ?? 'API'} map bundle`}
           className="w-full h-[150px] object-contain"
           onLoad={handleImageLoad}
           onError={handleImageError}
           style={{ display: imageError ? 'none' : 'block' }}
         />
       </div>
-      <p className="text-xs text-muted-foreground mt-2 text-center">
-        {bundleInfo.name}
-      </p>
+      {bundleInfo && (
+        <p className="text-xs text-muted-foreground mt-2 text-center">
+          {bundleInfo.name}
+        </p>
+      )}
     </div>
   )
 }

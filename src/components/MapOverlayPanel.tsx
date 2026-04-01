@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import type { MapBundleInfo, PreviewInfo } from '@/plugins/vite-plugin-maps'
+import type { PreviewInfo as ApiPreviewInfo } from '@/lib/map-api'
 
 interface MapOverlayPanelProps {
   visible: boolean
@@ -12,6 +14,8 @@ interface MapOverlayPanelProps {
   opacity: number
   onOpacityChange: (opacity: number) => void
   bundleInfo?: MapBundleInfo
+  /** API session previews — used when bundleInfo has no availablePreviews */
+  apiPreviews?: ApiPreviewInfo[]
 }
 
 // Helper to format preview names for display
@@ -42,8 +46,9 @@ export function MapOverlayPanel({
   opacity,
   onOpacityChange,
   bundleInfo,
+  apiPreviews,
 }: MapOverlayPanelProps) {
-  if (!bundleInfo) {
+  if (!bundleInfo && (!apiPreviews || apiPreviews.length === 0)) {
     return null
   }
 
@@ -57,8 +62,17 @@ export function MapOverlayPanel({
     }
   }
 
-  // Use dynamic previews if available, otherwise fall back to empty array
-  const availablePreviews = bundleInfo.availablePreviews || []
+  // Use local bundle previews, or convert API previews to the same shape.
+  // API urls like "previews/density/density_target.png" are normalized to
+  // the local path format ("density/density_target") at this boundary.
+  const availablePreviews = useMemo<PreviewInfo[]>(() => {
+    if (bundleInfo?.availablePreviews?.length) return bundleInfo.availablePreviews
+    return (apiPreviews ?? []).map((p) => ({
+      category: p.category,
+      name: p.name,
+      path: p.url.replace(/^previews\//, '').replace(/\.png$/, ''),
+    }))
+  }, [bundleInfo?.availablePreviews, apiPreviews])
   const groupedPreviews = groupPreviewsByCategory(availablePreviews)
 
   return (

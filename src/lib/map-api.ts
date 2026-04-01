@@ -5,10 +5,17 @@ const MAP_API_BASE = 'http://127.0.0.1:8100'
 /** Prefix used to distinguish API session IDs from local bundle names in param values */
 export const API_PREFIX = 'api:'
 
+export interface PreviewInfo {
+  category: string
+  name: string
+  url: string
+}
+
 export interface GenerateResponse {
   session_id: string
   manifest: MapManifest
   base_url: string
+  previews?: PreviewInfo[]
 }
 
 export interface GenerateOptions {
@@ -22,6 +29,44 @@ export interface SessionInfo {
   created_at: string
   map_keys: string[]
   persistent: boolean
+  previews?: PreviewInfo[]
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline config types — mirrors the API's GenerateConfigSchema
+// ---------------------------------------------------------------------------
+
+export interface PipelineConfig {
+  density?: {
+    gamma?: number
+    feature_weight?: number
+    contour_weight?: number
+    tonal_weight?: number
+    importance_weight?: number
+  }
+  features?: {
+    weights?: { eyes?: number; mouth?: number }
+  }
+  contour?: {
+    direction?: string
+    contour_thickness?: number
+  }
+  flow?: {
+    blend_mode?: string
+    coherence_power?: number
+    etf?: {
+      blur_sigma?: number
+      refine_iterations?: number
+    }
+  }
+  complexity?: {
+    metric?: string
+    sigma?: number
+  }
+  flow_speed?: {
+    speed_min?: number
+    speed_max?: number
+  }
 }
 
 export async function checkHealth(): Promise<boolean> {

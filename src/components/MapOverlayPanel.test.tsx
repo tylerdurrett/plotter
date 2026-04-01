@@ -16,6 +16,9 @@ describe('MapOverlayPanel', () => {
       maps: [],
     },
     previewUrl: '/maps/test-bundle/preview.png',
+    availablePreviews: [
+      { category: 'density', name: 'density_target', path: 'density/density_target' },
+    ],
   }
 
   const defaultProps = {

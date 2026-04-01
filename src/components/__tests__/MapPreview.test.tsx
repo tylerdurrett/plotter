@@ -66,16 +66,14 @@ describe('MapPreview', () => {
     // Simulate image error
     fireEvent.error(img)
 
-    // Should show error message
+    // Should show error message and hide the image
     await waitFor(() => {
       expect(screen.getByText('Failed to load preview')).toBeInTheDocument()
+      expect(img).toHaveStyle({ display: 'none' })
     })
-
-    // Image should be hidden
-    expect(img).toHaveStyle({ display: 'none' })
   })
 
-  it('resets loading state when bundle changes', () => {
+  it('resets loading state when bundle changes', async () => {
     const { rerender } = render(<MapPreview bundleInfo={mockBundleInfo} />)
 
     const img = screen.getByRole('img') as HTMLImageElement
@@ -90,8 +88,10 @@ describe('MapPreview', () => {
 
     rerender(<MapPreview bundleInfo={newBundleInfo} />)
 
-    // Should show loading state again for new image
-    expect(screen.getByText('Loading preview...')).toBeInTheDocument()
+    // Should show loading state again for new image (reset happens via microtask)
+    await waitFor(() => {
+      expect(screen.getByText('Loading preview...')).toBeInTheDocument()
+    })
   })
 
   it('applies correct styling classes', () => {

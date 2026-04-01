@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   ControlPanel,
@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ExportPanel } from '@/components/ExportPanel'
 import { MapGeneratePanel } from '@/components/MapGeneratePanel'
 import { MapOverlayPanel } from '@/components/MapOverlayPanel'
+import { MapPipelineConfig } from '@/components/MapPipelineConfig'
 import { MapPreview } from '@/components/MapPreview'
 import { PanelLayout } from '@/components/PanelLayout'
 import { PresetPanel } from '@/components/PresetPanel'
@@ -16,11 +17,12 @@ import { SketchSelector } from '@/components/SketchSelector'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Tabs, TabList, Tab, TabPanel } from '@/components/ui/tabs'
 import { SketchViewer } from '@/components/SketchViewer'
 import { useLevaParamHover } from '@/hooks/useLevaParamHover'
 import { useMapApi } from '@/hooks/useMapApi'
 import { API_PREFIX, getFullBaseUrl } from '@/lib/map-api'
-import type { SessionInfo } from '@/lib/map-api'
+import type { PipelineConfig, PreviewInfo, SessionInfo } from '@/lib/map-api'
 import { useMaps } from '@/hooks/useMaps'
 import {
   getInitialSketch,
@@ -78,6 +80,9 @@ function App() {
   const [overlayMapKey, setOverlayMapKey] = useState('density/density_target')
   const [overlayOpacity, setOverlayOpacity] = useState(0.3)
   const overlayImageCache = useRef<Map<string, HTMLImageElement>>(new Map())
+
+  // Pipeline config state for map generation
+  const [pipelineConfig, setPipelineConfig] = useState<PipelineConfig>({})
 
   // View scale state (framework-level zoom)
   const [viewScale, setViewScale] = useState(1.0)
@@ -253,7 +258,7 @@ function App() {
     const isApiSession = mapBundleName.startsWith(API_PREFIX)
 
     if (isApiSession) {
-      // API-generated map — no local bundle info or previews
+      // API-generated map — no local bundle info
       setCurrentBundleInfo(undefined)
     } else {
       // Local bundle — find metadata for preview display
@@ -355,16 +360,44 @@ function App() {
     return () => { cancelled = true }
   }, [selectedMapBundle, selectedFitMode, mapBundles, activeSketch])
 
+  const isApiSession = selectedMapBundle?.startsWith(API_PREFIX) ?? false
+  const apiSessionId = isApiSession ? selectedMapBundle!.slice(API_PREFIX.length) : null
+
+  const apiSessionPreviews = useMemo<PreviewInfo[]>(() => {
+    if (!isApiSession || !apiSessionId) return []
+    return mapApi.sessions.find(s => s.session_id === apiSessionId)?.previews ?? []
+  }, [isApiSession, apiSessionId, mapApi.sessions])
+
+  const apiPreviewUrl = useMemo(() => {
+    if (!isApiSession || !apiSessionId || apiSessionPreviews.length === 0) return undefined
+    const preview = apiSessionPreviews.find(p => p.name === 'density_target') ?? apiSessionPreviews[0]
+    return `${getFullBaseUrl(apiSessionId)}/${preview.url}`
+  }, [isApiSession, apiSessionId, apiSessionPreviews])
+
   // Load overlay image when bundle or map key changes
   useEffect(() => {
     const loadOverlayImage = async () => {
-      if (!currentBundleInfo || !overlayMapKey) {
+      if (!overlayMapKey) {
         setOverlayImage(null)
         return
       }
 
-      // Build cache key
-      const cacheKey = `${currentBundleInfo.name}-${overlayMapKey}`
+      // Construct the preview URL based on bundle source
+      let previewUrl: string | undefined
+      let cacheKey: string
+
+      if (currentBundleInfo) {
+        // Local bundle
+        cacheKey = `${currentBundleInfo.name}-${overlayMapKey}`
+        previewUrl = `/maps/${currentBundleInfo.name}/export/previews/${overlayMapKey}.png`
+      } else if (apiSessionId) {
+        // API session
+        cacheKey = `api:${apiSessionId}-${overlayMapKey}`
+        previewUrl = `${getFullBaseUrl(apiSessionId)}/previews/${overlayMapKey}.png`
+      } else {
+        setOverlayImage(null)
+        return
+      }
 
       // Check cache first
       const cached = overlayImageCache.current.get(cacheKey)
@@ -373,14 +406,9 @@ function App() {
         return
       }
 
-      // Construct the preview URL using the path directly
-      // overlayMapKey now contains the full path like "density/density_target"
-      const previewUrl = `/maps/${currentBundleInfo.name}/export/previews/${overlayMapKey}.png`
-
       // Load the image
       const img = new Image()
       img.onload = () => {
-        // Cache the loaded image
         overlayImageCache.current.set(cacheKey, img)
         setOverlayImage(img)
       }
@@ -392,7 +420,7 @@ function App() {
     }
 
     loadOverlayImage()
-  }, [currentBundleInfo, overlayMapKey])
+  }, [currentBundleInfo, overlayMapKey, apiSessionId])
 
   const handleRandomizeSeed = useCallback(() => {
     const newSeed = Math.floor(Math.random() * 10000)
@@ -484,43 +512,67 @@ function App() {
           Randomize Seed
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto">
-        <ControlPanel
-          ref={controlPanelRef}
-          key={controlPanelKey}
-          params={resolvedParams}
-          onChange={scheduleRender}
-        />
-        <ScalePanel
-          scale={viewScale}
-          onScaleChange={setViewScale}
-        />
-        {hasMapBundleParam && (
-          <>
+      {hasMapBundleParam ? (
+        <Tabs defaultValue="controls" className="flex-1 min-h-0">
+          <TabList>
+            <Tab value="controls">Controls</Tab>
+            <Tab value="pipeline">Map Pipeline</Tab>
+          </TabList>
+          <TabPanel value="controls">
+            <ControlPanel
+              ref={controlPanelRef}
+              key={controlPanelKey}
+              params={resolvedParams}
+              onChange={scheduleRender}
+            />
+            <ScalePanel
+              scale={viewScale}
+              onScaleChange={setViewScale}
+            />
+            <MapOverlayPanel
+              visible={overlayVisible}
+              onVisibilityChange={setOverlayVisible}
+              mapKey={overlayMapKey}
+              onMapKeyChange={setOverlayMapKey}
+              opacity={overlayOpacity}
+              onOpacityChange={setOverlayOpacity}
+              bundleInfo={currentBundleInfo}
+              apiPreviews={apiSessionPreviews}
+            />
+          </TabPanel>
+          <TabPanel value="pipeline">
             <MapGeneratePanel
               mapApi={mapApi}
               onSelectBundle={handleSelectMapBundle}
               selectedBundle={selectedMapBundle}
+              config={pipelineConfig}
             />
             <MapPreview
               bundleInfo={currentBundleInfo}
               loading={loadingMapBundle}
-              emptyMessage={selectedMapBundle?.startsWith(API_PREFIX) ? 'No preview for API maps' : undefined}
+              previewUrl={apiPreviewUrl}
             />
-            {currentBundleInfo && (
-              <MapOverlayPanel
-                visible={overlayVisible}
-                onVisibilityChange={setOverlayVisible}
-                mapKey={overlayMapKey}
-                onMapKeyChange={setOverlayMapKey}
-                opacity={overlayOpacity}
-                onOpacityChange={setOverlayOpacity}
-                bundleInfo={currentBundleInfo}
-              />
-            )}
-          </>
-        )}
-      </div>
+            <MapPipelineConfig
+              config={pipelineConfig}
+              onConfigChange={setPipelineConfig}
+              disabled={mapApi.generating}
+            />
+          </TabPanel>
+        </Tabs>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          <ControlPanel
+            ref={controlPanelRef}
+            key={controlPanelKey}
+            params={resolvedParams}
+            onChange={scheduleRender}
+          />
+          <ScalePanel
+            scale={viewScale}
+            onScaleChange={setViewScale}
+          />
+        </div>
+      )}
       <Separator />
       <ExportPanel
         lines={lines}
