@@ -44,4 +44,29 @@ describe('Collapsible', () => {
     await userEvent.click(button)
     expect(button).toHaveAttribute('aria-expanded', 'true')
   })
+
+  it('renders headerRight content', () => {
+    render(
+      <Collapsible title="Section" headerRight={<span data-testid="right">X</span>}>
+        Content
+      </Collapsible>,
+    )
+
+    expect(screen.getByTestId('right')).toBeInTheDocument()
+  })
+
+  it('headerRight click does not toggle collapse', async () => {
+    render(
+      <Collapsible title="Section" headerRight={<span data-testid="right">X</span>}>
+        Content
+      </Collapsible>,
+    )
+
+    // Section starts collapsed
+    expect(screen.queryByText('Content')).not.toBeInTheDocument()
+
+    // Click the headerRight element — should not toggle
+    await userEvent.click(screen.getByTestId('right'))
+    expect(screen.queryByText('Content')).not.toBeInTheDocument()
+  })
 })

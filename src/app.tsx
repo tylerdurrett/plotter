@@ -556,6 +556,8 @@ function App() {
               config={pipelineConfig}
               onConfigChange={setPipelineConfig}
               disabled={mapApi.generating}
+              previewBaseUrl={apiSessionId ? getFullBaseUrl(apiSessionId) : undefined}
+              previews={apiSessionPreviews}
             />
           </TabPanel>
         </Tabs>

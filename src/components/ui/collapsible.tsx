@@ -7,9 +7,11 @@ interface CollapsibleProps {
   defaultOpen?: boolean
   children: React.ReactNode
   className?: string
+  /** Content rendered at the right edge of the header (e.g. a thumbnail). */
+  headerRight?: React.ReactNode
 }
 
-export function Collapsible({ title, defaultOpen = false, children, className }: CollapsibleProps) {
+export function Collapsible({ title, defaultOpen = false, children, className, headerRight }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen)
 
   return (
@@ -27,6 +29,11 @@ export function Collapsible({ title, defaultOpen = false, children, className }:
           )}
         />
         {title}
+        {headerRight && (
+          <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+            {headerRight}
+          </span>
+        )}
       </button>
       {open && (
         <div className="px-3 pb-3 space-y-3">

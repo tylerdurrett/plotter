@@ -1,16 +1,57 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 
 import { Collapsible } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
-import type { PipelineConfig } from '@/lib/map-api'
+import type { PipelineConfig, PreviewInfo } from '@/lib/map-api'
 
 interface MapPipelineConfigProps {
   config: PipelineConfig
   onConfigChange: (config: PipelineConfig) => void
   disabled?: boolean
+  /** Base URL for the active API session (e.g. http://…/api/maps/{id}). */
+  previewBaseUrl?: string
+  /** Available previews from the API session, used to validate existence. */
+  previews?: PreviewInfo[]
+}
+
+/** Maps each section title to its representative preview. */
+const PRIMARY_PREVIEWS: Record<string, { category: string; name: string }> = {
+  Density:      { category: 'density',     name: 'density_target' },
+  Features:     { category: 'features',    name: 'combined_importance' },
+  Contour:      { category: 'contour',     name: 'contour_influence' },
+  Flow:         { category: 'flow',        name: 'flow_lic' },
+  Complexity:   { category: 'complexity',  name: 'complexity' },
+  'Flow Speed': { category: 'flow',        name: 'flow_speed' },
+}
+
+function getStageThumbnailUrl(
+  sectionTitle: string,
+  previewBaseUrl?: string,
+  previews?: PreviewInfo[],
+): string | undefined {
+  if (!previewBaseUrl) return undefined
+  const mapping = PRIMARY_PREVIEWS[sectionTitle]
+  if (!mapping) return undefined
+  if (previews && !previews.some(p => p.category === mapping.category && p.name === mapping.name)) {
+    return undefined
+  }
+  return `${previewBaseUrl}/previews/${mapping.category}/${mapping.name}.png`
+}
+
+function StageThumbnail({ src }: { src: string }) {
+  const [error, setError] = useState(false)
+  if (error) return null
+  return (
+    <img
+      src={src}
+      alt=""
+      className="size-6 rounded-sm object-cover bg-secondary"
+      onError={() => setError(true)}
+    />
+  )
 }
 
 /** Labeled slider with current value display. */
@@ -58,6 +99,8 @@ export function MapPipelineConfig({
   config,
   onConfigChange,
   disabled = false,
+  previewBaseUrl,
+  previews,
 }: MapPipelineConfigProps) {
   const update = useCallback(
     <K extends keyof PipelineConfig>(
@@ -98,6 +141,11 @@ export function MapPipelineConfig({
     onConfigChange({})
   }, [onConfigChange])
 
+  const thumb = (title: string) => {
+    const url = getStageThumbnailUrl(title, previewBaseUrl, previews)
+    return url ? <StageThumbnail src={url} /> : undefined
+  }
+
   const d = config.density ?? {}
   const f = config.features ?? {}
   const c = config.contour ?? {}
@@ -114,7 +162,7 @@ export function MapPipelineConfig({
       </div>
 
       {/* Density — most commonly tuned, open by default */}
-      <Collapsible title="Density" defaultOpen>
+      <Collapsible title="Density" defaultOpen headerRight={thumb('Density')}>
         <ConfigSlider
           label="Gamma"
           value={d.gamma}
@@ -168,7 +216,7 @@ export function MapPipelineConfig({
       </Collapsible>
 
       {/* Features */}
-      <Collapsible title="Features">
+      <Collapsible title="Features" headerRight={thumb('Features')}>
         <ConfigSlider
           label="Eyes Weight"
           value={f.weights?.eyes}
@@ -192,7 +240,7 @@ export function MapPipelineConfig({
       </Collapsible>
 
       {/* Contour */}
-      <Collapsible title="Contour">
+      <Collapsible title="Contour" headerRight={thumb('Contour')}>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Direction</Label>
           <Select
@@ -224,7 +272,7 @@ export function MapPipelineConfig({
       </Collapsible>
 
       {/* Flow */}
-      <Collapsible title="Flow">
+      <Collapsible title="Flow" headerRight={thumb('Flow')}>
         <ConfigSlider
           label="ETF Blur Sigma"
           value={fl.etf?.blur_sigma}
@@ -276,7 +324,7 @@ export function MapPipelineConfig({
       </Collapsible>
 
       {/* Complexity */}
-      <Collapsible title="Complexity">
+      <Collapsible title="Complexity" headerRight={thumb('Complexity')}>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Metric</Label>
           <Select
@@ -307,7 +355,7 @@ export function MapPipelineConfig({
       </Collapsible>
 
       {/* Flow Speed */}
-      <Collapsible title="Flow Speed">
+      <Collapsible title="Flow Speed" headerRight={thumb('Flow Speed')}>
         <ConfigSlider
           label="Speed Min"
           value={fs.speed_min}
