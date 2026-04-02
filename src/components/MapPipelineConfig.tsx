@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
 
 import { Collapsible } from '@/components/ui/collapsible'
+import { ConfigSlider } from '@/components/ui/config-slider'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
 import type { PipelineConfig, PreviewInfo } from '@/lib/map-api'
 
@@ -15,6 +15,8 @@ interface MapPipelineConfigProps {
   previewBaseUrl?: string
   /** Available previews from the API session, used to validate existence. */
   previews?: PreviewInfo[]
+  /** When true, hide composition controls (they live in MapMixPanel instead). */
+  compositeMode?: boolean
 }
 
 /** Maps each section title to its representative preview. */
@@ -54,53 +56,13 @@ function StageThumbnail({ src }: { src: string }) {
   )
 }
 
-/** Labeled slider with current value display. */
-function ConfigSlider({
-  label,
-  value,
-  defaultValue,
-  min,
-  max,
-  step,
-  onChange,
-  disabled,
-}: {
-  label: string
-  value: number | undefined
-  defaultValue: number
-  min: number
-  max: number
-  step: number
-  onChange: (v: number) => void
-  disabled?: boolean
-}) {
-  const current = value ?? defaultValue
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs text-muted-foreground">{label}</Label>
-        <span className="text-xs tabular-nums text-muted-foreground">{current.toFixed(2)}</span>
-      </div>
-      <Slider
-        min={min}
-        max={max}
-        step={step}
-        value={[current]}
-        onValueChange={([v]) => onChange(v)}
-        disabled={disabled}
-        className="py-1"
-      />
-    </div>
-  )
-}
-
 export function MapPipelineConfig({
   config,
   onConfigChange,
   disabled = false,
   previewBaseUrl,
   previews,
+  compositeMode = false,
 }: MapPipelineConfigProps) {
   const update = useCallback(
     <K extends keyof PipelineConfig>(
@@ -157,63 +119,66 @@ export function MapPipelineConfig({
     <div data-testid="map-pipeline-config" className="border-t border-border">
       <div className="p-3 pb-0">
         <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-          Pipeline Config
+          {compositeMode ? 'Compute' : 'Pipeline Config'}
+          {compositeMode && <span className="text-[10px] normal-case font-normal opacity-60 ml-1">(regenerate)</span>}
         </h3>
       </div>
 
-      {/* Density — most commonly tuned, open by default */}
-      <Collapsible title="Density" defaultOpen headerRight={thumb('Density')}>
-        <ConfigSlider
-          label="Gamma"
-          value={d.gamma}
-          defaultValue={1.0}
-          min={0.1}
-          max={3.0}
-          step={0.05}
-          onChange={(v) => update('density', 'gamma', v)}
-          disabled={disabled}
-        />
-        <ConfigSlider
-          label="Feature Weight"
-          value={d.feature_weight}
-          defaultValue={1.0}
-          min={0}
-          max={2.0}
-          step={0.05}
-          onChange={(v) => update('density', 'feature_weight', v)}
-          disabled={disabled}
-        />
-        <ConfigSlider
-          label="Contour Weight"
-          value={d.contour_weight}
-          defaultValue={0.5}
-          min={0}
-          max={2.0}
-          step={0.05}
-          onChange={(v) => update('density', 'contour_weight', v)}
-          disabled={disabled}
-        />
-        <ConfigSlider
-          label="Tonal Weight"
-          value={d.tonal_weight}
-          defaultValue={1.0}
-          min={0}
-          max={2.0}
-          step={0.05}
-          onChange={(v) => update('density', 'tonal_weight', v)}
-          disabled={disabled}
-        />
-        <ConfigSlider
-          label="Importance Weight"
-          value={d.importance_weight}
-          defaultValue={1.0}
-          min={0}
-          max={2.0}
-          step={0.05}
-          onChange={(v) => update('density', 'importance_weight', v)}
-          disabled={disabled}
-        />
-      </Collapsible>
+      {/* Density — hidden in composite mode (controls move to MapMixPanel) */}
+      {!compositeMode && (
+        <Collapsible title="Density" defaultOpen headerRight={thumb('Density')}>
+          <ConfigSlider
+            label="Gamma"
+            value={d.gamma}
+            defaultValue={1.0}
+            min={0.1}
+            max={3.0}
+            step={0.05}
+            onChange={(v) => update('density', 'gamma', v)}
+            disabled={disabled}
+          />
+          <ConfigSlider
+            label="Feature Weight"
+            value={d.feature_weight}
+            defaultValue={1.0}
+            min={0}
+            max={2.0}
+            step={0.05}
+            onChange={(v) => update('density', 'feature_weight', v)}
+            disabled={disabled}
+          />
+          <ConfigSlider
+            label="Contour Weight"
+            value={d.contour_weight}
+            defaultValue={0.5}
+            min={0}
+            max={2.0}
+            step={0.05}
+            onChange={(v) => update('density', 'contour_weight', v)}
+            disabled={disabled}
+          />
+          <ConfigSlider
+            label="Tonal Weight"
+            value={d.tonal_weight}
+            defaultValue={1.0}
+            min={0}
+            max={2.0}
+            step={0.05}
+            onChange={(v) => update('density', 'tonal_weight', v)}
+            disabled={disabled}
+          />
+          <ConfigSlider
+            label="Importance Weight"
+            value={d.importance_weight}
+            defaultValue={1.0}
+            min={0}
+            max={2.0}
+            step={0.05}
+            onChange={(v) => update('density', 'importance_weight', v)}
+            disabled={disabled}
+          />
+        </Collapsible>
+      )}
 
       {/* Features */}
       <Collapsible title="Features" headerRight={thumb('Features')}>
@@ -271,7 +236,7 @@ export function MapPipelineConfig({
         />
       </Collapsible>
 
-      {/* Flow */}
+      {/* Flow — in composite mode, coherence_power and blend_mode move to MapMixPanel */}
       <Collapsible title="Flow" headerRight={thumb('Flow')}>
         <ConfigSlider
           label="ETF Blur Sigma"
@@ -293,34 +258,38 @@ export function MapPipelineConfig({
           onChange={(v) => updateNested('flow', 'etf', 'refine_iterations', v)}
           disabled={disabled}
         />
-        <ConfigSlider
-          label="Coherence Power"
-          value={fl.coherence_power}
-          defaultValue={2.0}
-          min={0.5}
-          max={5.0}
-          step={0.1}
-          onChange={(v) => update('flow', 'coherence_power', v)}
-          disabled={disabled}
-        />
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Blend Mode</Label>
-          <Select
-            value={fl.blend_mode ?? 'slerp'}
-            onValueChange={(v) => update('flow', 'blend_mode', v)}
-            disabled={disabled}
-          >
-            <SelectTrigger className="h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="slerp">Slerp</SelectItem>
-              <SelectItem value="average">Average</SelectItem>
-              <SelectItem value="dominant">Dominant</SelectItem>
-              <SelectItem value="weighted">Weighted</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {!compositeMode && (
+          <>
+            <ConfigSlider
+              label="Coherence Power"
+              value={fl.coherence_power}
+              defaultValue={2.0}
+              min={0.5}
+              max={5.0}
+              step={0.1}
+              onChange={(v) => update('flow', 'coherence_power', v)}
+              disabled={disabled}
+            />
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Blend Mode</Label>
+              <Select
+                value={fl.blend_mode ?? 'slerp'}
+                onValueChange={(v) => update('flow', 'blend_mode', v)}
+                disabled={disabled}
+              >
+                <SelectTrigger className="h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="slerp">Slerp</SelectItem>
+                  <SelectItem value="average">Average</SelectItem>
+                  <SelectItem value="dominant">Dominant</SelectItem>
+                  <SelectItem value="weighted">Weighted</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
       </Collapsible>
 
       {/* Complexity */}
@@ -354,29 +323,31 @@ export function MapPipelineConfig({
         />
       </Collapsible>
 
-      {/* Flow Speed */}
-      <Collapsible title="Flow Speed" headerRight={thumb('Flow Speed')}>
-        <ConfigSlider
-          label="Speed Min"
-          value={fs.speed_min}
-          defaultValue={0.2}
-          min={0}
-          max={1.0}
-          step={0.05}
-          onChange={(v) => update('flow_speed', 'speed_min', v)}
-          disabled={disabled}
-        />
-        <ConfigSlider
-          label="Speed Max"
-          value={fs.speed_max}
-          defaultValue={1.0}
-          min={0}
-          max={1.0}
-          step={0.05}
-          onChange={(v) => update('flow_speed', 'speed_max', v)}
-          disabled={disabled}
-        />
-      </Collapsible>
+      {/* Flow Speed — hidden in composite mode (controls move to MapMixPanel) */}
+      {!compositeMode && (
+        <Collapsible title="Flow Speed" headerRight={thumb('Flow Speed')}>
+          <ConfigSlider
+            label="Speed Min"
+            value={fs.speed_min}
+            defaultValue={0.2}
+            min={0}
+            max={1.0}
+            step={0.05}
+            onChange={(v) => update('flow_speed', 'speed_min', v)}
+            disabled={disabled}
+          />
+          <ConfigSlider
+            label="Speed Max"
+            value={fs.speed_max}
+            defaultValue={1.0}
+            min={0}
+            max={1.0}
+            step={0.05}
+            onChange={(v) => update('flow_speed', 'speed_max', v)}
+            disabled={disabled}
+          />
+        </Collapsible>
+      )}
 
       <div className="p-3">
         <Button

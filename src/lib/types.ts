@@ -1,4 +1,4 @@
-import type { MapBundle } from './maps'
+import type { MapSampler } from './maps'
 
 /** 2D vector / point tuple */
 export type Vec2 = [number, number]
@@ -61,7 +61,7 @@ export interface SketchContext {
     margin: number
   }
   /** Optional map bundle for map-driven drawing */
-  maps?: MapBundle
+  maps?: MapSampler
 }
 
 /** Sketch module contract — every sketch file must satisfy this interface */
@@ -84,7 +84,7 @@ export interface ExportOptions extends PaperSize {
   strokeColor: string
 }
 
-/** Map keys available in map bundles */
+/** Map keys available in map bundles (final composed outputs) */
 export type MapKey =
   | 'density_target'
   | 'flow_x'
@@ -93,6 +93,33 @@ export type MapKey =
   | 'coherence'
   | 'complexity'
   | 'flow_speed'
+
+/** Map keys for intermediate pipeline outputs (v2 manifests) */
+export type IntermediateMapKey =
+  | 'feature_influence'
+  | 'contour_influence'
+  | 'tonal'
+  | 'etf_flow_x'
+  | 'etf_flow_y'
+  | 'contour_flow_x'
+  | 'contour_flow_y'
+  | 'coherence'
+  | 'complexity'
+
+/** Blend mode for density composition */
+export type DensityBlendMode = 'multiply' | 'screen' | 'max' | 'weighted'
+
+/** Parameters for client-side realtime composition of intermediate maps */
+export interface CompositionParams {
+  featureWeight: number
+  contourWeight: number
+  blendMode: DensityBlendMode
+  gamma: number
+  coherencePower: number
+  fallbackThreshold: number
+  speedMin: number
+  speedMax: number
+}
 
 /** Map coordinate fitting mode */
 export type MapFitMode = 'cover' | 'fit'

@@ -4,7 +4,7 @@ import { Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { UseMapApiResult } from '@/hooks/useMapApi'
 import { API_PREFIX } from '@/lib/map-api'
-import type { SessionInfo } from '@/lib/map-api'
+import type { GenerateOptions, SessionInfo } from '@/lib/map-api'
 
 interface MapGeneratePanelProps {
   mapApi: UseMapApiResult
@@ -14,6 +14,8 @@ interface MapGeneratePanelProps {
   selectedBundle?: string
   /** Pipeline config overrides to include when generating maps */
   config?: Record<string, unknown>
+  /** When true, request intermediates mode from the server (v2 manifest) */
+  useIntermediates?: boolean
 }
 
 function formatTime(isoString: string): string {
@@ -35,6 +37,7 @@ export function MapGeneratePanel({
   onSelectBundle,
   selectedBundle,
   config,
+  useIntermediates = false,
 }: MapGeneratePanelProps) {
   const { apiAvailable, checking, sessions, generating, error } = mapApi
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -60,8 +63,10 @@ export function MapGeneratePanel({
     const imageFile = file ?? selectedFile
     if (!imageFile) return
     try {
-      const opts = config && Object.keys(config).length > 0 ? { config } : undefined
-      const response = await mapApi.generate(imageFile, opts)
+      const opts: GenerateOptions = {}
+      if (config && Object.keys(config).length > 0) opts.config = config
+      if (useIntermediates) opts.mode = 'intermediates'
+      const response = await mapApi.generate(imageFile, Object.keys(opts).length > 0 ? opts : undefined)
       onSelectBundle(`${API_PREFIX}${response.session_id}`)
       setLastGeneratedFile(imageFile)
       setSelectedFile(null)
@@ -69,7 +74,7 @@ export function MapGeneratePanel({
     } catch {
       // Error is surfaced via mapApi.error
     }
-  }, [selectedFile, mapApi, onSelectBundle, config])
+  }, [selectedFile, mapApi, onSelectBundle, config, useIntermediates])
 
   const handleRegenerate = useCallback(() => {
     if (lastGeneratedFile) handleGenerate(lastGeneratedFile)

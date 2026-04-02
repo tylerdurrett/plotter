@@ -117,8 +117,37 @@ describe('parseManifest', () => {
   })
 
   it('throws error for unsupported version', () => {
-    const manifest = { ...validManifest, version: 2 }
-    expect(() => parseManifest(manifest)).toThrow('Unsupported manifest version 2, expected 1')
+    const manifest = { ...validManifest, version: 99 }
+    expect(() => parseManifest(manifest)).toThrow('Unsupported manifest version 99, expected 1 or 2')
+  })
+
+  it('accepts version 2 manifest with intermediate keys', () => {
+    const v2Manifest = {
+      ...validManifest,
+      version: 2,
+      maps: [
+        {
+          filename: 'feature_influence.bin',
+          key: 'feature_influence',
+          dtype: 'float32',
+          shape: [3088, 2316],
+          value_range: [0.0, 1.0],
+          description: 'Remapped feature distance field',
+        },
+        {
+          filename: 'coherence.bin',
+          key: 'coherence',
+          dtype: 'float32',
+          shape: [3088, 2316],
+          value_range: [0.0, 1.0],
+          description: 'ETF coherence',
+        },
+      ],
+    }
+    const result = parseManifest(v2Manifest)
+    expect(result.version).toBe(2)
+    expect(result.maps).toHaveLength(2)
+    expect(result.maps[0].key).toBe('feature_influence')
   })
 
   it('throws error for missing source_image', () => {

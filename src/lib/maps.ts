@@ -1,4 +1,15 @@
-import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2, Random, Polyline, TraceOptions, TraceFlowNoiseOptions } from '@/lib/types'
+import type { MapManifest, MapInfo, MapKey, MapFitMode, Vec2, Random, Polyline, TraceOptions, TraceFlowNoiseOptions, IntermediateMapKey, CompositionParams } from '@/lib/types'
+import { composite, allocateOutputs, DEFAULT_COMPOSITION_PARAMS, type CompositorInputs } from './map-compositor'
+
+/** Common interface for anything that can sample maps (MapBundle or CompositeMapBundle) */
+export interface MapSampler {
+  sample(key: MapKey, x: number, y: number): number
+  sampleFlow(x: number, y: number): Vec2
+  ensureMap(key: MapKey): Promise<void>
+  readonly manifest: MapManifest
+  readonly mapWidth: number
+  readonly mapHeight: number
+}
 
 const VALID_MAP_KEYS = new Set<MapKey>([
   'density_target',
@@ -10,17 +21,35 @@ const VALID_MAP_KEYS = new Set<MapKey>([
   'flow_speed',
 ])
 
+const VALID_INTERMEDIATE_KEYS = new Set<IntermediateMapKey>([
+  'feature_influence',
+  'contour_influence',
+  'tonal',
+  'etf_flow_x',
+  'etf_flow_y',
+  'contour_flow_x',
+  'contour_flow_y',
+  'coherence',
+  'complexity',
+])
+
 function isMapKey(key: unknown): key is MapKey {
   return typeof key === 'string' && VALID_MAP_KEYS.has(key as MapKey)
 }
 
-function isMapInfo(obj: unknown): obj is MapInfo {
+function isIntermediateMapKey(key: unknown): key is IntermediateMapKey {
+  return typeof key === 'string' && VALID_INTERMEDIATE_KEYS.has(key as IntermediateMapKey)
+}
+
+function isMapInfo(obj: unknown, version: number): obj is MapInfo {
   if (!obj || typeof obj !== 'object') return false
 
   const m = obj as Record<string, unknown>
 
   if (typeof m.filename !== 'string') return false
-  if (!isMapKey(m.key)) return false
+  // v2 manifests use intermediate keys; v1 uses final map keys
+  const validKey = version === 2 ? isIntermediateMapKey(m.key) : isMapKey(m.key)
+  if (!validKey) return false
   if (typeof m.dtype !== 'string') return false
   if (typeof m.description !== 'string') return false
 
@@ -44,8 +73,8 @@ export function parseManifest(json: unknown): MapManifest {
     throw new Error(`Manifest version must be a number, got ${typeof manifest.version}`)
   }
 
-  if (manifest.version !== 1) {
-    throw new Error(`Unsupported manifest version ${manifest.version}, expected 1`)
+  if (manifest.version !== 1 && manifest.version !== 2) {
+    throw new Error(`Unsupported manifest version ${manifest.version}, expected 1 or 2`)
   }
 
   if (typeof manifest.source_image !== 'string') {
@@ -71,7 +100,7 @@ export function parseManifest(json: unknown): MapManifest {
   const maps: MapInfo[] = []
   for (let i = 0; i < manifest.maps.length; i++) {
     const mapEntry = manifest.maps[i]
-    if (!isMapInfo(mapEntry)) {
+    if (!isMapInfo(mapEntry, manifest.version as number)) {
       throw new Error(`Invalid map entry at index ${i}: missing or invalid fields`)
     }
     maps.push(mapEntry)
@@ -199,7 +228,38 @@ export function sampleMap(
   return v0 * (1 - fy) + v1 * fy
 }
 
-export class MapBundle {
+/**
+ * Sample a map array with coordinate transform and fit-mode boundary check.
+ * Shared by MapBundle and CompositeMapBundle to avoid duplicating this logic.
+ */
+function sampleTransformed(
+  data: Float32Array,
+  width: number,
+  height: number,
+  transform: MapTransform,
+  fitMode: MapFitMode,
+  x: number,
+  y: number,
+): number {
+  if (fitMode === 'fit') {
+    const mapScaledWidth = width * transform.scale
+    const mapScaledHeight = height * transform.scale
+    if (
+      x < transform.offsetX ||
+      x > transform.offsetX + mapScaledWidth ||
+      y < transform.offsetY ||
+      y > transform.offsetY + mapScaledHeight
+    ) {
+      return 0
+    }
+  }
+
+  const px = (x - transform.offsetX) / transform.scale
+  const py = (y - transform.offsetY) / transform.scale
+  return sampleMap(data, width, height, px, py)
+}
+
+export class MapBundle implements MapSampler {
   private _manifest: MapManifest
   private baseUrl: string
   private transform: MapTransform
@@ -311,37 +371,13 @@ export class MapBundle {
   }
 
   sample(key: MapKey, x: number, y: number): number {
-    // Check if map is loaded
     const data = this.mapCache.get(key)
     if (!data) {
       throw new Error(
         `Map '${key}' not loaded. Call ensureMap('${key}') first.`,
       )
     }
-
-    // In fit mode, check if the point is in an unmapped region
-    if (this.fitMode === 'fit') {
-      // Check if point is outside the scaled map region
-      const mapScaledWidth = this._manifest.width * this.transform.scale
-      const mapScaledHeight = this._manifest.height * this.transform.scale
-
-      if (
-        x < this.transform.offsetX ||
-        x > this.transform.offsetX + mapScaledWidth ||
-        y < this.transform.offsetY ||
-        y > this.transform.offsetY + mapScaledHeight
-      ) {
-        return 0
-      }
-    }
-
-    // Transform from cm-coords to pixel-coords
-    const px = (x - this.transform.offsetX) / this.transform.scale
-    const py = (y - this.transform.offsetY) / this.transform.scale
-
-    // Sample using bilinear interpolation
-    // sampleMap already handles clamping for out-of-bounds coordinates
-    return sampleMap(data, this._manifest.width, this._manifest.height, px, py)
+    return sampleTransformed(data, this._manifest.width, this._manifest.height, this.transform, this.fitMode, x, y)
   }
 
   sampleFlow(x: number, y: number): Vec2 {
@@ -368,6 +404,206 @@ export class MapBundle {
 
   get mapHeight(): number {
     return this._manifest.height
+  }
+}
+
+// Map from intermediate key names to CompositorInputs field names
+const INTERMEDIATE_KEY_TO_FIELD: Record<string, keyof CompositorInputs> = {
+  feature_influence: 'featureInfluence',
+  contour_influence: 'contourInfluence',
+  tonal: 'tonal',
+  etf_flow_x: 'etfFlowX',
+  etf_flow_y: 'etfFlowY',
+  contour_flow_x: 'contourFlowX',
+  contour_flow_y: 'contourFlowY',
+  coherence: 'coherence',
+  complexity: 'complexity',
+}
+
+/**
+ * Map bundle that holds intermediate pipeline outputs and composites
+ * them client-side for realtime slider-driven remixing.
+ *
+ * Implements the same MapSampler interface as MapBundle — sketches
+ * cannot tell the difference.
+ */
+export class CompositeMapBundle implements MapSampler {
+  private intermediates: CompositorInputs
+  private composed: CompositorOutputs
+  private _compositionParams: CompositionParams
+  private transform: MapTransform
+  private fitMode: MapFitMode
+  private _manifest: MapManifest
+  /** The original v2 manifest from the server (for reference) */
+  readonly intermediateManifest: MapManifest
+
+  private constructor(
+    intermediateManifest: MapManifest,
+    intermediates: CompositorInputs,
+    transform: MapTransform,
+    fitMode: MapFitMode,
+    params: CompositionParams,
+  ) {
+    this.intermediateManifest = intermediateManifest
+    this.intermediates = intermediates
+    this.transform = transform
+    this.fitMode = fitMode
+    this._compositionParams = { ...params }
+
+    // Pre-allocate and run initial composition
+    this.composed = allocateOutputs(intermediates.width * intermediates.height)
+    composite(intermediates, params, this.composed)
+
+    // Build a synthetic v1 manifest so downstream consumers see standard map keys
+    this._manifest = {
+      version: 1,
+      source_image: intermediateManifest.source_image,
+      width: intermediateManifest.width,
+      height: intermediateManifest.height,
+      created_at: intermediateManifest.created_at,
+      maps: [
+        { filename: 'density_target.bin', key: 'density_target' as MapKey, dtype: 'float32', shape: [intermediateManifest.height, intermediateManifest.width], value_range: [0, 1], description: 'Composed density target' },
+        { filename: 'flow_x.bin', key: 'flow_x' as MapKey, dtype: 'float32', shape: [intermediateManifest.height, intermediateManifest.width], value_range: [-1, 1], description: 'Composed flow X' },
+        { filename: 'flow_y.bin', key: 'flow_y' as MapKey, dtype: 'float32', shape: [intermediateManifest.height, intermediateManifest.width], value_range: [-1, 1], description: 'Composed flow Y' },
+        { filename: 'importance.bin', key: 'importance' as MapKey, dtype: 'float32', shape: [intermediateManifest.height, intermediateManifest.width], value_range: [0, 1], description: 'Composed importance' },
+        { filename: 'coherence.bin', key: 'coherence' as MapKey, dtype: 'float32', shape: [intermediateManifest.height, intermediateManifest.width], value_range: [0, 1], description: 'ETF coherence (pass-through)' },
+        { filename: 'complexity.bin', key: 'complexity' as MapKey, dtype: 'float32', shape: [intermediateManifest.height, intermediateManifest.width], value_range: [0, 1], description: 'Complexity (pass-through)' },
+        { filename: 'flow_speed.bin', key: 'flow_speed' as MapKey, dtype: 'float32', shape: [intermediateManifest.height, intermediateManifest.width], value_range: [0, 1], description: 'Composed flow speed' },
+      ],
+    }
+  }
+
+  /**
+   * Load intermediate maps from a v2 API session and composite them.
+   * Fetches all 9 .bin files in parallel.
+   */
+  static async load(
+    baseUrl: string,
+    drawWidth: number,
+    drawHeight: number,
+    fitMode: MapFitMode,
+    params?: CompositionParams,
+  ): Promise<CompositeMapBundle> {
+    // Fetch v2 manifest
+    const manifestUrl = `${baseUrl}/manifest.json`
+    const res = await fetch(manifestUrl)
+    if (!res.ok) {
+      throw new Error(`Failed to load manifest from ${manifestUrl}: ${res.status} ${res.statusText}`)
+    }
+    const manifestJson = await res.json()
+    const manifest = parseManifest(manifestJson)
+
+    if (manifest.version !== 2) {
+      throw new Error(`CompositeMapBundle requires manifest version 2, got ${manifest.version}`)
+    }
+
+    return CompositeMapBundle.fromManifest(manifest, baseUrl, drawWidth, drawHeight, fitMode, params)
+  }
+
+  /**
+   * Create from an already-parsed manifest (e.g. from API response).
+   */
+  static async fromManifest(
+    manifest: MapManifest,
+    baseUrl: string,
+    drawWidth: number,
+    drawHeight: number,
+    fitMode: MapFitMode,
+    params?: CompositionParams,
+  ): Promise<CompositeMapBundle> {
+    const compositionParams = params ?? DEFAULT_COMPOSITION_PARAMS
+
+    // Fetch all intermediate .bin files in parallel
+    const fetches = manifest.maps.map(async (mapInfo) => {
+      const binUrl = `${baseUrl}/${mapInfo.filename}`
+      const res = await fetch(binUrl)
+      if (!res.ok) {
+        throw new Error(`Failed to load intermediate map '${mapInfo.key}': ${res.status}`)
+      }
+      const buffer = await res.arrayBuffer()
+      const data = new Float32Array(buffer)
+      const expected = mapInfo.shape[0] * mapInfo.shape[1]
+      if (data.length !== expected) {
+        throw new Error(`Map '${mapInfo.key}' size mismatch: expected ${expected}, got ${data.length}`)
+      }
+      return { key: mapInfo.key, data }
+    })
+
+    const results = await Promise.all(fetches)
+
+    // Build CompositorInputs directly from fetched arrays to avoid
+    // double allocation (zero-fill + copy). Missing keys get zero-filled.
+    const pixelCount = manifest.width * manifest.height
+    const fetched = new Map(results.map(r => [r.key, r.data]))
+    const getOrZero = (key: string) => fetched.get(key) ?? new Float32Array(pixelCount)
+
+    const inputs: CompositorInputs = {
+      featureInfluence: getOrZero('feature_influence'),
+      contourInfluence: getOrZero('contour_influence'),
+      tonal: getOrZero('tonal'),
+      etfFlowX: getOrZero('etf_flow_x'),
+      etfFlowY: getOrZero('etf_flow_y'),
+      contourFlowX: getOrZero('contour_flow_x'),
+      contourFlowY: getOrZero('contour_flow_y'),
+      coherence: getOrZero('coherence'),
+      complexity: getOrZero('complexity'),
+      width: manifest.width,
+      height: manifest.height,
+    }
+
+    const transform = computeMapTransform(
+      manifest.width, manifest.height, drawWidth, drawHeight, fitMode,
+    )
+
+    return new CompositeMapBundle(manifest, inputs, transform, fitMode, compositionParams)
+  }
+
+  /**
+   * Recompose with new parameters. ~1-2ms, no allocation.
+   * Call this when mix sliders change.
+   */
+  recompose(params: CompositionParams): void {
+    this._compositionParams = { ...params }
+    composite(this.intermediates, params, this.composed)
+  }
+
+  /** All maps are pre-composed — validates key but does not fetch. */
+  async ensureMap(key: MapKey): Promise<void> {
+    this.getComposedArray(key) // validates key exists
+  }
+
+  sample(key: MapKey, x: number, y: number): number {
+    const data = this.getComposedArray(key)
+    return sampleTransformed(data, this._manifest.width, this._manifest.height, this.transform, this.fitMode, x, y)
+  }
+
+  sampleFlow(x: number, y: number): Vec2 {
+    return [this.sample('flow_x', x, y), this.sample('flow_y', x, y)]
+  }
+
+  get manifest(): MapManifest {
+    return this._manifest
+  }
+
+  get mapWidth(): number {
+    return this._manifest.width
+  }
+
+  get mapHeight(): number {
+    return this._manifest.height
+  }
+
+  private getComposedArray(key: MapKey): Float32Array {
+    switch (key) {
+      case 'density_target': return this.composed.densityTarget
+      case 'importance':     return this.composed.importance
+      case 'flow_x':         return this.composed.flowX
+      case 'flow_y':         return this.composed.flowY
+      case 'coherence':      return this.composed.coherence
+      case 'complexity':     return this.composed.complexity
+      case 'flow_speed':     return this.composed.flowSpeed
+      default: throw new Error(`Unknown map key: ${key}`)
+    }
   }
 }
 

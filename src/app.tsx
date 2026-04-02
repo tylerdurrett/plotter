@@ -7,6 +7,7 @@ import {
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ExportPanel } from '@/components/ExportPanel'
 import { MapGeneratePanel } from '@/components/MapGeneratePanel'
+import { MapMixPanel } from '@/components/MapMixPanel'
 import { MapOverlayPanel } from '@/components/MapOverlayPanel'
 import { MapPipelineConfig } from '@/components/MapPipelineConfig'
 import { MapPreview } from '@/components/MapPreview'
@@ -29,10 +30,11 @@ import {
   useSketchLoader,
 } from '@/hooks/useSketchLoader'
 import { createSketchContext } from '@/lib/context'
-import { MapBundle } from '@/lib/maps'
+import { MapBundle, CompositeMapBundle, type MapSampler } from '@/lib/maps'
+import { DEFAULT_COMPOSITION_PARAMS } from '@/lib/map-compositor'
 import { extractParamValues } from '@/lib/params'
 import { PAPER_SIZES } from '@/lib/paper'
-import type { PaperSize, Polyline, SketchModule, MapFitMode } from '@/lib/types'
+import type { PaperSize, Polyline, SketchModule, MapFitMode, CompositionParams } from '@/lib/types'
 import type { MapBundleInfo } from '@/plugins/vite-plugin-maps'
 
 /** Format an API session as a display label for the dropdown */
@@ -45,7 +47,7 @@ function sessionLabel(session: SessionInfo): string {
 /** Build a SketchContext from explicit param values */
 function buildContext(
   paramValues: Record<string, unknown>,
-  mapBundle?: MapBundle,
+  mapBundle?: MapSampler,
 ) {
   const paperSize = (paramValues.paperSize as string) ?? 'letter'
   const margin = (paramValues.margin as number) ?? 0
@@ -70,7 +72,7 @@ function App() {
   const { bundles: mapBundles } = useMaps()
   const hasMapBundleParam = activeSketch != null && 'mapBundle' in activeSketch.params
   const mapApi = useMapApi(hasMapBundleParam)
-  const [currentMapBundle, setCurrentMapBundle] = useState<MapBundle | undefined>()
+  const [currentMapBundle, setCurrentMapBundle] = useState<MapSampler | undefined>()
   const [currentBundleInfo, setCurrentBundleInfo] = useState<MapBundleInfo | undefined>()
   const [loadingMapBundle, setLoadingMapBundle] = useState(false)
 
@@ -83,6 +85,11 @@ function App() {
 
   // Pipeline config state for map generation
   const [pipelineConfig, setPipelineConfig] = useState<PipelineConfig>({})
+
+  // Composition params for realtime mix (only used with CompositeMapBundle)
+  const [compositionParams, setCompositionParams] = useState<CompositionParams>(
+    () => ({ ...DEFAULT_COMPOSITION_PARAMS }),
+  )
 
   // View scale state (framework-level zoom)
   const [viewScale, setViewScale] = useState(1.0)
@@ -302,12 +309,23 @@ function App() {
           ? getFullBaseUrl(mapBundleName.slice(API_PREFIX.length))
           : `/maps/${mapBundleName}/export`
 
-        const bundle = await MapBundle.load(
-          baseUrl,
-          drawWidth,
-          drawHeight,
-          fitMode,
-        )
+        // Try loading as CompositeMapBundle (v2 intermediates) for API sessions,
+        // fall back to MapBundle (v1 final maps) for local bundles or old servers.
+        let bundle: MapSampler
+        if (isApiSession) {
+          try {
+            bundle = await CompositeMapBundle.load(
+              baseUrl, drawWidth, drawHeight, fitMode, compositionParams,
+            )
+          } catch (err) {
+            // Only fall back for version mismatch (old server); re-throw network errors
+            const isVersionMismatch = err instanceof Error && err.message.includes('manifest version')
+            if (!isVersionMismatch) throw err
+            bundle = await MapBundle.load(baseUrl, drawWidth, drawHeight, fitMode)
+          }
+        } else {
+          bundle = await MapBundle.load(baseUrl, drawWidth, drawHeight, fitMode)
+        }
 
         if (cancelled) return
 
@@ -431,6 +449,21 @@ function App() {
     controlPanelRef.current?.setValues({ mapBundle: value })
   }, [])
 
+  // Handle realtime composition param changes — recompose and re-render instantly
+  const handleCompositionChange = useCallback((params: CompositionParams) => {
+    setCompositionParams(params)
+    if (currentMapBundle instanceof CompositeMapBundle) {
+      currentMapBundle.recompose(params)
+      // Trigger re-render with updated composed maps
+      if (pendingParamsRef.current) {
+        scheduleRender(pendingParamsRef.current)
+      }
+    }
+  }, [currentMapBundle, scheduleRender])
+
+  // Whether the active bundle supports realtime composition
+  const isCompositeBundle = currentMapBundle instanceof CompositeMapBundle
+
   const getCurrentParams = useCallback(() => pendingParamsRef.current, [])
 
   const handleLoadPreset = useCallback(
@@ -546,18 +579,26 @@ function App() {
               onSelectBundle={handleSelectMapBundle}
               selectedBundle={selectedMapBundle}
               config={pipelineConfig}
+              useIntermediates
             />
             <MapPreview
               bundleInfo={currentBundleInfo}
               loading={loadingMapBundle}
               previewUrl={apiPreviewUrl}
             />
+            {isCompositeBundle && (
+              <MapMixPanel
+                params={compositionParams}
+                onParamsChange={handleCompositionChange}
+              />
+            )}
             <MapPipelineConfig
               config={pipelineConfig}
               onConfigChange={setPipelineConfig}
               disabled={mapApi.generating}
               previewBaseUrl={apiSessionId ? getFullBaseUrl(apiSessionId) : undefined}
               previews={apiSessionPreviews}
+              compositeMode={isCompositeBundle}
             />
           </TabPanel>
         </Tabs>

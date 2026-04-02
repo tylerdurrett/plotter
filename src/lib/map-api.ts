@@ -21,6 +21,7 @@ export interface GenerateResponse {
 export interface GenerateOptions {
   maps?: string[]
   config?: Record<string, unknown>
+  mode?: 'intermediates'
 }
 
 export interface SessionInfo {
@@ -91,6 +92,7 @@ export async function generateMaps(
     const requestBody: Record<string, unknown> = {}
     if (options.maps) requestBody.maps = options.maps
     if (options.config) requestBody.config = options.config
+    if (options.mode) requestBody.mode = options.mode
     if (Object.keys(requestBody).length > 0) {
       formData.append('request_body', JSON.stringify(requestBody))
     }
